@@ -431,16 +431,15 @@ function initNav() {
 function getPasswords() {
   if (state.passwords && Object.keys(state.passwords).length > 0) return state.passwords;
   const raw = localStorage.getItem('messPasswords');
-  let pw = {};
   if (raw) {
-    try { pw = JSON.parse(raw); } catch (e) { }
+    try {
+      const pw = JSON.parse(raw);
+      if (Object.keys(pw).length > 0) return pw;
+    } catch (e) { }
   }
-  if (!pw || Object.keys(pw).length === 0) {
-    DEFAULT_MEMBERS.forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
-  }
-  state.passwords = pw;
-  savePasswords(pw);
-  return state.passwords;
+  const pw = {};
+  DEFAULT_MEMBERS.forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
+  return pw;
 }
 function savePasswords(pw) {
   state.passwords = pw;
