@@ -60,8 +60,7 @@ A professional, secure, and dynamic mess management application for tracking mea
 ---
 
 ## 👨‍💻 Developer
-Developed with precision for **Alif-Deep Axis Mess**. 
-Built by **Antigravity AI**.
+Developed with precision for **Alif**. 
 
 ---
 *Note: This application is designed to work offline and maintains all data in your browser's local storage.*
