@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mess Manager — Alif-Deep Axis</title>
+    <meta name="description"
+        content="Mess management application for tracking meals, bazar costs, rent, and member balances." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ========================================
+   MESS MANAGER — Design System
+   ======================================== */
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-card-hover: #1f2a40;
+            --bg-input: #0f1525;
+            --border: #2a3550;
+            --border-focus: #38bdf8;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            --green: #34d399;
+            --green-bg: rgba(52, 211, 153, 0.1);
+            --red: #f87171;
+            --red-bg: rgba(248, 113, 113, 0.1);
+            --amber: #fbbf24;
+            --amber-bg: rgba(251, 191, 36, 0.1);
+            --purple: #a78bfa;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --sidebar-w: 240px;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-xs: 6px;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f4f6fb;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f0f2f7;
+            --bg-input: #f4f6fb;
+            --border: #e2e6ef;
+            --border-focus: #2563eb;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.1);
+            --accent-gradient: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            --green: #16a34a;
+            --green-bg: rgba(22, 163, 74, 0.08);
+            --red: #dc2626;
+            --red-bg: rgba(220, 38, 38, 0.08);
+            --amber: #d97706;
+            --amber-bg: rgba(217, 119, 6, 0.08);
+            --purple: #7c3aed;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 14px;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: var(--sidebar-w);
+            min-width: var(--sidebar-w);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 12px;
+            gap: 8px;
+            z-index: 100;
+            transition: transform var(--transition);
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px 16px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px;
+        }
+
+        .brand-icon {
+            font-size: 24px;
+        }
+
+        .sidebar-brand h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-brand h1 span {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: var(--font);
+            font-size: 13.5px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .nav-btn svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-btn.active {
+            background: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        .nav-btn.active svg {
+            stroke: var(--accent);
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-family: var(--font);
+            font-size: 12.5px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .theme-toggle .toggle-icon {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .theme-toggle .toggle-track {
+            width: 36px;
+            height: 20px;
+            background: var(--border);
+            border-radius: 10px;
+            position: relative;
+            margin-left: auto;
+            transition: background 0.3s ease;
+        }
+
+        .theme-toggle .toggle-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        [data-theme="light"] .theme-toggle .toggle-track {
+            background: var(--accent);
+        }
+
+        [data-theme="light"] .theme-toggle .toggle-thumb {
+            transform: translateX(16px);
+            background: white;
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid var(--border);
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .month-selector label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .month-selector select {
+            width: 100%;
+            padding: 7px 10px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            font-family: var(--font);
+            font-size: 12.5px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .month-selector select:focus {
+            border-color: var(--accent);
+        }
+
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            padding: 0 16px;
+            gap: 12px;
+            z-index: 101;
+        }
+
+        .mobile-header h1 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .mobile-header h1 span {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hamburger {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px 32px;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-transition {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Glassmorphism Refinement */
+        .glass {
+            background: rgba(26, 34, 53, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="light"] .glass {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Toast System */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10000;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            min-width: 250px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--green);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--red);
+        }
+
+        .toast.info {
+            border-left: 4px solid var(--accent);
+        }
+
+        /* SVG Chart Styles */
+        .chart-container {
+            width: 100%;
+            height: 40px;
+            margin-top: 10px;
+        }
+
+        .chart-path {
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 2px 4px var(--accent-glow));
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h2 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .page-header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: opacity var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-focus);
+            transform: translateY(-2px);
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-card .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-card .stat-sub {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .stat-accent .stat-value {
+            color: var(--accent);
+        }
+
+        .stat-green .stat-value {
+            color: var(--green);
+        }
+
+        .stat-amber .stat-value {
+            color: var(--amber);
+        }
+
+        .stat-red .stat-value {
+            color: var(--red);
+        }
+
+        .table-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .table-wrap .table-title {
+            padding: 14px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            z-index: 2;
+        }
+
+        tbody td {
+            padding: 9px 12px;
+            border-bottom: 1px solid rgba(42, 53, 80, 0.4);
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        tbody tr.grand-total-row {
+            background: var(--bg-secondary);
+            font-weight: 700;
+        }
+
+        tbody tr.grand-total-row td {
+            border-top: 2px solid var(--border);
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+
+        .name-cell {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .name-cell .avatar {
+            width: 32px;
+            height: 32px;
+            perspective: 1000px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .avatar-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .avatar:hover .avatar-inner {
+            transform: rotateY(180deg);
+        }
+
+        .avatar-front,
+        .avatar-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .avatar-front img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .avatar-back {
+            background: var(--accent);
+            color: white;
+            transform: rotateY(180deg);
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .positive {
+            color: var(--green) !important;
+        }
+
+        .negative {
+            color: var(--red) !important;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 10.5px;
+            font-weight: 600;
+        }
+
+        .badge-green {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .badge-red {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        .badge-amber {
+            background: var(--amber-bg);
+            color: var(--amber);
+        }
+
+        .grid-input {
+            width: 48px;
+            padding: 5px 6px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid transparent;
+            border-radius: var(--radius-xs);
+            font-family: var(--font);
+            font-size: 12px;
+            text-align: center;
+            outline: none;
+            transition: all var(--transition);
+        }
+
+        .grid-input:disabled {
+            background: transparent;
+            border-color: transparent;
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 0.6;
+            -moz-appearance: textfield;
+            appearance: none;
+        }
+
+
+        .grid-input:disabled::-webkit-inner-spin-button,
+        .grid-input:disabled::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .grid-input:hover {
+            border-color: var(--border);
+        }
+
+        .grid-input:focus {
+            border-color: var(--accent);
+            background: var(--bg-card);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .grid-input.wide {
+            width: 80px;
+        }
+
+        .grid-input.wider {
+            width: 110px;
+        }
+
+        .calc-cell {
+            color: var(--accent);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Verification Styles ── */
+        .verification-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            margin-top: 4px;
+        }
+
+        .verify-badge {
+            font-size: 8px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all var(--transition);
+            user-select: none;
+            opacity: 0.4;
+            letter-spacing: 0.2px;
+            border: 1px solid transparent;
+        }
+
+        .verify-badge.v-on {
+            opacity: 1;
+            box-shadow: 0 0 5px var(--accent-glow);
+        }
+
+        .verify-badge.type-u {
+            background: rgba(56, 189, 248, 0.1);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .verify-badge.type-u.v-on {
+            background: #38bdf8;
+            color: #fff;
+        }
+
+        .verify-badge.type-a {
+            background: rgba(167, 139, 250, 0.1);
+            color: #a78bfa;
+            border-color: rgba(167, 139, 250, 0.3);
+        }
+
+        .verify-badge.type-a.v-on {
+            background: #a78bfa;
+            color: #fff;
+        }
+
+        .verify-badge:hover:not(.locked) {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+
+        .verify-badge.locked {
+            cursor: not-allowed;
+        }
+
+        .cell-fully-verified {
+            background: rgba(52, 211, 153, 0.05) !important;
+            box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.2);
+        }
+
+        .cell-fully-verified .grid-input {
+            color: var(--green) !important;
+            font-weight: 700;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            font-family: var(--font);
+            font-size: 13px;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--accent);
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-row label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .divide-select {
+            padding: 4px 6px;
+            font-size: 11px;
+            background: var(--bg-input);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: var(--font);
+            cursor: pointer;
+            outline: none;
+        }
+
+        .section-heading {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 28px 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-heading:first-child {
+            margin-top: 0;
+        }
+
+        /* Login Overlay */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px 36px;
+            width: 400px;
+            max-width: 90vw;
+            text-align: center;
+        }
+
+        .login-card .login-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .login-card h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .login-card p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 24px;
+        }
+
+        .login-card select,
+        .login-card input[type="password"] {
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font);
+            font-size: 14px;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .login-card select:focus,
+        .login-card input:focus {
+            border-color: var(--accent);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 11px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--accent-gradient);
+            color: white;
+            font-family: var(--font);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity var(--transition);
+        }
+
+        .login-btn:hover {
+            opacity: 0.9;
+        }
+
+        .login-error {
+            color: var(--red);
+            font-size: 12px;
+            margin-top: 10px;
+            min-height: 18px;
+        }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .user-badge .ub-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .user-badge .ub-role {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: var(--accent-glow);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--red);
+            font-family: var(--font);
+            font-size: 12.5px;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+            margin-bottom: 8px;
+        }
+
+        .logout-btn:hover {
+            background: var(--red-bg);
+            border-color: var(--red);
+        }
+
+        .unlock-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+
+        .unlock-bar input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            font-family: var(--font);
+            font-size: 13px;
+            outline: none;
+        }
+
+        .unlock-bar input:focus {
+            border-color: var(--accent);
+        }
+
+        .unlock-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius-xs);
+            background: var(--accent-gradient);
+            color: white;
+            font-family: var(--font);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .unlock-msg {
+            font-size: 11px;
+            color: var(--red);
+            margin-left: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .mobile-header {
+                display: flex;
+            }
+
+            .main-content {
+                padding: 72px 16px 24px;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🍽️</div>
+                <h1>Mess<span>Manager</span></h1>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-tab="dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                    Dashboard
+                </button>
+                <button class="nav-btn" data-tab="meals">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8h1a4 4 0 010 8h-1" />
+                        <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                        <line x1="6" y1="1" x2="6" y2="4" />
+                        <line x1="10" y1="1" x2="10" y2="4" />
+                        <line x1="14" y1="1" x2="14" y2="4" />
+                    </svg>
+                    Meals
+                </button>
+                <button class="nav-btn" data-tab="bazar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="21" r="1" />
+                        <circle cx="20" cy="21" r="1" />
+                        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+                    </svg>
+                    Bazar
+                </button>
+                <button class="nav-btn" data-tab="rent">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    Rent
+                </button>
+                <button class="nav-btn" data-tab="history">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    History
+                </button>
+                <button class="nav-btn" data-tab="admin" id="adminNavBtn" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                    </svg>
+                    Admin
+                </button>
+                <button class="nav-btn" data-tab="mgmt" id="mgmtNavBtn" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+                    </svg>
+                    Management
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="theme-toggle" id="themeToggle">
+                    <span class="toggle-icon" id="themeIcon">🌙</span>
+                    <span id="themeLabel">Dark Mode</span>
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </button>
+                <div class="month-selector">
+                    <label>Month</label>
+                    <select id="monthSelect"></select>
+                </div>
+                <div class="month-selector">
+                    <label>Year</label>
+                    <select id="yearSelect"></select>
+                </div>
+            </div>
+        </aside>
+        <div class="mobile-header">
+            <button class="hamburger" id="hamburger">☰</button>
+            <h1>Mess<span>Manager</span></h1>
+        </div>
+        <main class="main-content" id="mainContent">
+            <section class="tab-content active" id="tab-dashboard"></section>
+            <section class="tab-content" id="tab-meals"></section>
+            <section class="tab-content" id="tab-bazar"></section>
+            <section class="tab-content" id="tab-rent"></section>
+            <section class="tab-content" id="tab-history"></section>
+            <section class="tab-content" id="tab-admin"></section>
+            <section class="tab-content" id="tab-mgmt"></section>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-icon">🔐</div>
+            <h2>Mess<span
+                    style="background:var(--accent-gradient);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">Manager</span>
+            </h2>
+            <p>Select your name and enter your password to continue</p>
+            <select id="loginUser"></select>
+            <input type="password" id="loginPass" placeholder="Enter your password" />
+            <button class="login-btn" id="loginBtn">Sign In</button>
+            <div class="login-error" id="loginError"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ========================================
+           MESS MANAGER — Main Application
+           ======================================== */
+        const COLORS = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#fb923c', '#f472b6'];
+        const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const DEFAULT_MEMBERS = ['ALIF', 'JUBAYER', 'SADMAN', 'ABID', 'RIFAT', 'RABBI', 'RAFID', 'LIKHON'];
+        const UTILITY_FIELDS = [
+            { key: 'cylinder', label: 'Cylinder', divideBy: 7 },
+            { key: 'dust', label: 'Dust', divideBy: 7 },
+            { key: 'water', label: 'Water', divideBy: 7 },
+            { key: 'serviceCharge', label: 'Service Charge', divideBy: 7 },
+            { key: 'electricity', label: 'Electricity', divideBy: 4 },
+            { key: 'internet', label: 'Internet', divideBy: 7 },
+            { key: 'rannaBua', label: 'Ranna Bua', divideBy: 4 },
+            { key: 'houseCleaner', label: 'House Cleaner', divideBy: 7 },
+        ];
+
+        // ── Security & Date Helpers ──
+        function getBDDate() {
+            // Bangladesh Standard Time (UTC+6)
+            const d = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }));
+            return { day: d.getDate(), month: d.getMonth(), year: d.getFullYear() };
+        }
+
+        function isDatePassed(day, month, year) {
+            const bd = getBDDate();
+            if (year < bd.year) return true;
+            if (year > bd.year) return false;
+            if (month < bd.month) return true;
+            if (month > bd.month) return false;
+            return day < bd.day;
+        }
+
+        function canEditRecord(memberIdx, day) {
+            if (isAdmin()) return true;
+            const memberName = state.members[memberIdx];
+            if (memberName !== currentUser) return false;
+            // day here is 1-indexed (1 to 31)
+            if (isDatePassed(day, state.currentMonth, state.currentYear)) return false;
+            return true;
+        }
+
+        function canVerifyRecord(day, month, year) {
+            const bd = getBDDate();
+            const now = new Date(bd.year, bd.month, bd.day);
+            const entryDate = new Date(year, month, day);
+            const diffTime = now - entryDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            // Window is Today (0) or Next Day (1)
+            return diffDays === 0 || diffDays === 1;
+        }
+
+        function toggleVerify(mi, d, type, dataKey) {
+            const mk = monthKey(state.currentMonth, state.currentYear);
+            const md = ensureMonthData(state, mk);
+            const vPrefix = dataKey === 'meals' ? 'Meals' : (dataKey === 'bazar' ? 'Bazar' : 'BazarOthers');
+            const vKey = type === 'user' ? 'v' + vPrefix + 'User' : 'v' + vPrefix + 'Admin';
+
+            // Window check
+            if (!isAdmin() && !canVerifyRecord(d + 1, state.currentMonth, state.currentYear)) {
+                showToast('Verification window closed', 'info');
+                return;
+            }
+
+            // Role check
+            if (type === 'user') {
+                if (state.members[mi] !== currentUser) {
+                    showToast('Verify your own records only', 'error');
+                    return;
+                }
+            } else {
+                if (!isAdmin()) {
+                    showToast('Admin verification required', 'error');
+                    return;
+                }
+            }
+
+            md[vKey][mi][d] = !md[vKey][mi][d];
+            save();
+            renderDashboard();
+            if (dataKey === 'meals') renderMeals(); else renderBazar();
+            showToast('Verification updated', 'success');
+        }
+
+
+
+        function defaultState() {
+            const now = new Date();
+            return { members: [...DEFAULT_MEMBERS], currentMonth: now.getMonth(), currentYear: now.getFullYear(), months: {} };
+        }
+
+        function monthKey(m, y) { return y + '-' + String(m + 1).padStart(2, '0'); }
+
+        const DEFAULT_UTILITIES = { cylinder: 0, dust: 200, water: 1000, serviceCharge: 3000, electricity: 1200, internet: 840, rannaBua: 2800, houseCleaner: 1000 };
+        const DEFAULT_RENT = { 'ALIF': 2000, 'JUBAYER': 3500, 'SADMAN': 3500, 'ABID': 0, 'RIFAT': 3500, 'RABBI': 3500, 'RAFID': 1500, 'LIKHON': 2000 };
+
+        function ensureMonthData(st, mk) {
+            if (!st.months[mk]) {
+                var n = st.members.length;
+                st.months[mk] = {
+                    meals: Array.from({ length: n }, function () { return new Array(31).fill(0); }),
+                    vMealsUser: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    vMealsAdmin: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    bazar: Array.from({ length: n }, function () { return new Array(31).fill(0); }),
+                    vBazarUser: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    vBazarAdmin: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    bazarOthers: Array.from({ length: n }, function () { return new Array(31).fill(0); }),
+                    vBazarOthersUser: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    vBazarOthersAdmin: Array.from({ length: n }, function () { return new Array(31).fill(false); }),
+                    utilities: {}, utilityDivisors: {},
+                    rent: st.members.map(function (m) { return DEFAULT_RENT[m] || 0; }),
+                    rentPaid: new Array(n).fill(0),
+                    historyBalances: new Array(n).fill(0),
+                    historyStatus: new Array(n).fill(''),
+                };
+                UTILITY_FIELDS.forEach(function (f) {
+                    st.months[mk].utilities[f.key] = DEFAULT_UTILITIES[f.key] || 0;
+                    st.months[mk].utilityDivisors[f.key] = f.divideBy;
+                });
+            }
+            var md = st.months[mk], n = st.members.length;
+            ['meals', 'bazar', 'bazarOthers'].forEach(function (k) {
+                while (md[k].length < n) md[k].push(new Array(31).fill(0));
+            });
+            // Ensure verification matrices exist for old data
+            ['vMealsUser', 'vMealsAdmin', 'vBazarUser', 'vBazarAdmin', 'vBazarOthersUser', 'vBazarOthersAdmin'].forEach(function (k) {
+                if (!md[k]) md[k] = Array.from({ length: n }, function () { return new Array(31).fill(false); });
+                while (md[k].length < n) md[k].push(new Array(31).fill(false));
+            });
+
+            while (md.rent.length < n) md.rent.push(0);
+            while (md.rentPaid.length < n) md.rentPaid.push(0);
+            while (md.historyBalances.length < n) md.historyBalances.push(0);
+            while (md.historyStatus.length < n) md.historyStatus.push('');
+            return md;
+        }
+
+        function daysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
+
+        var state = defaultState();
+        var currentUser = null; // set after login
+        var rentUnlocked = false; // non-admin can unlock full rent view
+        var historyUnlocked = false;
+
+        function save() { localStorage.setItem('messManagerState', JSON.stringify(state)); }
+        function load() { var raw = localStorage.getItem('messManagerState'); if (raw) { try { state = JSON.parse(raw); } catch (e) { state = defaultState(); } } }
+
+        // ── Auth System ──
+        function getPasswords() {
+            var raw = localStorage.getItem('messPasswords');
+            if (raw) try { return JSON.parse(raw); } catch (e) { }
+            // Default: ALIF gets 'admin', others get '1234'
+            var pw = {};
+            DEFAULT_MEMBERS.forEach(function (m) { pw[m] = m === 'ALIF' ? 'admin' : '1234'; });
+            savePasswords(pw);
+            return pw;
+        }
+        function savePasswords(pw) { localStorage.setItem('messPasswords', JSON.stringify(pw)); }
+
+        function isAdmin() { return currentUser === 'ALIF'; }
+
+        function initLogin() {
+            var sel = $('#loginUser');
+            DEFAULT_MEMBERS.forEach(function (m) {
+                sel.appendChild(el('option', { value: m }, m));
+            });
+            $('#loginBtn').addEventListener('click', doLogin);
+            $('#loginPass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+            // Check session
+            var sess = sessionStorage.getItem('messUser');
+            if (sess && DEFAULT_MEMBERS.indexOf(sess) !== -1) {
+                currentUser = sess;
+                hideLogin();
+            }
+        }
+
+        function doLogin() {
+            var user = $('#loginUser').value;
+            var pass = $('#loginPass').value;
+            var passwords = getPasswords();
+            if (passwords[user] && passwords[user] === pass) {
+                currentUser = user;
+                sessionStorage.setItem('messUser', user);
+                hideLogin();
+                $('#loginError').textContent = '';
+            } else {
+                $('#loginError').textContent = '❌ Incorrect password. Try again.';
+            }
+        }
+
+        function hideLogin() {
+            $('#loginOverlay').style.display = 'none';
+            // Show admin & mgmt tabs only for ALIF
+            if (isAdmin()) {
+                $('#adminNavBtn').style.display = '';
+                $('#mgmtNavBtn').style.display = '';
+            } else {
+                $('#adminNavBtn').style.display = 'none';
+                $('#mgmtNavBtn').style.display = 'none';
+            }
+            updateUserBadge();
+            renderAll();
+            showToast('Welcome back, ' + currentUser + '!', 'info');
+        }
+
+        function logout() {
+            currentUser = null;
+            rentUnlocked = false;
+            historyUnlocked = false;
+            sessionStorage.removeItem('messUser');
+            // Remove badge and logout btn
+            var old = $('#userBadge'); if (old) old.remove();
+            var ob = $('#logoutBtn'); if (ob) ob.remove();
+            $('#loginOverlay').style.display = 'flex';
+            $('#loginPass').value = '';
+            $('#loginError').textContent = '';
+        }
+
+        function updateUserBadge() {
+            var old = $('#userBadge'); if (old) old.remove();
+            var ob = $('#logoutBtn'); if (ob) ob.remove();
+            if (!currentUser) return;
+            var idx = state.members.indexOf(currentUser);
+            // Info badge (not clickable)
+            var badge = el('div', { class: 'user-badge', id: 'userBadge' });
+            badge.appendChild(avatar(currentUser, idx >= 0 ? idx : 0));
+            badge.appendChild(el('span', { class: 'ub-name' }, currentUser));
+            if (isAdmin()) badge.appendChild(el('span', { class: 'ub-role' }, 'ADMIN'));
+            // Dedicated logout button
+            var logBtn = el('button', { class: 'logout-btn', id: 'logoutBtn', onClick: function () { logout(); } });
+            logBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Logout';
+            var footer = document.querySelector('.sidebar-footer');
+            footer.parentNode.insertBefore(logBtn, footer);
+            footer.parentNode.insertBefore(badge, logBtn);
+        }
+
+        // ── UI Utilities ──
+        function showToast(msg, type = 'info') {
+            const container = $('#toastContainer');
+            const toast = el('div', { class: `toast ${type}` }, msg);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function renderMiniChart(container, data, color = 'var(--accent)') {
+            if (!data || data.length < 2) return;
+            const width = 200, height = 40, padding = 4;
+            const max = Math.max(...data) || 1, min = Math.min(...data);
+            const range = max - min || 1;
+            const points = data.map((v, i) => {
+                const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
+                const y = height - ((v - min) / range) * (height - padding * 2) - padding;
+                return `${x},${y}`;
+            }).join(' ');
+
+            const svg = `
+                <svg viewBox="0 0 ${width} ${height}" class="chart-container">
+                    <path d="M ${points}" class="chart-path" stroke="${color}" />
+                </svg>
+            `;
+            container.innerHTML = svg;
+        }
+
+        // ── Calculations ──
+        function calcReport(md, members) {
+            var n = members.length;
+            var totalMeals = [], totalBazar = [], totalOthersSpend = [];
+            for (var i = 0; i < n; i++) {
+                totalMeals[i] = md.meals[i].reduce(function (a, b) { return a + b; }, 0);
+                totalBazar[i] = md.bazar[i].reduce(function (a, b) { return a + b; }, 0);
+                totalOthersSpend[i] = md.bazarOthers[i].reduce(function (a, b) { return a + b; }, 0);
+            }
+            var grandTotalMeals = totalMeals.reduce(function (a, b) { return a + b; }, 0);
+            var grandTotalBazar = totalBazar.reduce(function (a, b) { return a + b; }, 0);
+            var grandTotalOthers = totalOthersSpend.reduce(function (a, b) { return a + b; }, 0);
+            var perMealRate = grandTotalMeals > 0 ? grandTotalBazar / grandTotalMeals : 0;
+            var results = [];
+            for (var i = 0; i < n; i++) {
+                var mealCost = totalMeals[i] * perMealRate;
+                var givenTake = totalBazar[i] - mealCost;
+                var othersShare = n > 0 ? grandTotalOthers / n : 0;
+                var finalBalance = givenTake + totalOthersSpend[i] - othersShare;
+                results.push({ name: members[i], totalMeals: totalMeals[i], perMealRate: perMealRate, mealCost: mealCost, totalBazar: totalBazar[i], givenTake: givenTake, othersSpend: totalOthersSpend[i], othersShare: othersShare, finalBalance: finalBalance });
+            }
+            return { results: results, grandTotalMeals: grandTotalMeals, grandTotalBazar: grandTotalBazar, grandTotalOthers: grandTotalOthers, perMealRate: perMealRate };
+        }
+
+        function calcRent(md, members) {
+            var n = members.length, rows = [];
+            for (var i = 0; i < n; i++) {
+                var shares = {}, serviceTotal = 0;
+                UTILITY_FIELDS.forEach(function (f) {
+                    var divisor = md.utilityDivisors[f.key] || f.divideBy;
+                    var val = divisor > 0 ? (md.utilities[f.key] || 0) / divisor : 0;
+                    shares[f.key] = val; serviceTotal += val;
+                });
+                var rent = md.rent[i] || 0, total = serviceTotal + rent, paid = md.rentPaid[i] || 0, yet = total - paid;
+                rows.push({ name: members[i], shares: shares, serviceTotal: serviceTotal, rent: rent, total: total, paid: paid, yet: yet });
+            }
+            return rows;
+        }
+
+        // ── DOM Helpers ──
+        var $ = function (s) { return document.querySelector(s); };
+        var $$ = function (s) { return document.querySelectorAll(s); };
+
+        function el(tag, attrs) {
+            var e = document.createElement(tag);
+            attrs = attrs || {};
+            for (var k in attrs) {
+                if (k === 'class') e.className = attrs[k];
+                else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+                else if (k === 'html') e.innerHTML = attrs[k];
+                else e.setAttribute(k, attrs[k]);
+            }
+            for (var i = 2; i < arguments.length; i++) {
+                var c = arguments[i];
+                if (typeof c === 'string' || typeof c === 'number') e.appendChild(document.createTextNode(c));
+                else if (c) e.appendChild(c);
+            }
+            return e;
+        }
+
+        function fmt(n) { if (n === undefined || n === null || isNaN(n)) return '0'; return n % 1 === 0 ? n.toLocaleString() : n.toFixed(2); }
+        function fmtTk(n) { return '৳' + fmt(n); }
+        function avatar(name, idx) {
+            const photoMap = {
+                'ALIF': 'mess-app/alif.png',
+                'JUBAYER': 'mess-app/jubayer.png',
+                'SADMAN': 'mess-app/sadman.png',
+                'RIFAT': 'mess-app/rifat.png',
+                'RABBI': 'mess-app/rabby.png',
+                'RABBY': 'mess-app/rabby.png',
+                'RAFID': 'mess-app/rafid.png',
+                'LIKHON': 'mess-app/likhon.png'
+            };
+
+            const photo = photoMap[name.toUpperCase()];
+            const color = COLORS[idx % COLORS.length];
+            const initial = (name || '?')[0].toUpperCase();
+
+            const front = el('div', { class: 'avatar-front' });
+            if (photo) {
+                const img = el('img', {
+                    src: photo,
+                    alt: name,
+                    onerror: function () {
+                        this.parentElement.style.background = color;
+                        this.parentElement.textContent = initial;
+                        this.remove();
+                    }
+                });
+                front.appendChild(img);
+            } else {
+                front.style.background = color;
+                front.textContent = initial;
+            }
+
+            const back = el('div', { class: 'avatar-back', style: `background:${color}` }, initial);
+            const inner = el('div', { class: 'avatar-inner' }, front, back);
+            return el('div', { class: 'avatar' }, inner);
+        }
+
+        // ── Nav ──
+        function initNav() {
+            $$('.nav-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    $$('.nav-btn').forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    $$('.tab-content').forEach(function (t) { t.classList.remove('active'); });
+                    $('#tab-' + btn.dataset.tab).classList.add('active');
+                    $('#sidebar').classList.remove('open');
+                });
+            });
+            $('#hamburger').addEventListener('click', function () { $('#sidebar').classList.toggle('open'); });
+        }
+
+        function initSelectors() {
+            var ms = $('#monthSelect'), ys = $('#yearSelect');
+            MONTH_NAMES.forEach(function (m, i) { var o = el('option', { value: i }, m); if (i === state.currentMonth) o.selected = true; ms.appendChild(o); });
+            for (var y = 2023; y <= 2030; y++) { var o = el('option', { value: y }, String(y)); if (y === state.currentYear) o.selected = true; ys.appendChild(o); }
+            ms.addEventListener('change', function () { state.currentMonth = +ms.value; save(); renderAll(); });
+            ys.addEventListener('change', function () { state.currentYear = +ys.value; save(); renderAll(); });
+        }
+
+        // ── Dashboard ──
+        function renderDashboard() {
+            var container = $('#tab-dashboard'), mk = monthKey(state.currentMonth, state.currentYear), md = ensureMonthData(state, mk);
+            var rep = calcReport(md, state.members);
+            container.innerHTML = '';
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'Mess Overview — ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, 'Real-time summary of meals, bazar, and shared costs')));
+
+            var stats = el('div', { class: 'stats-row' });
+
+            // Meal Rate Card with Chart
+            const rateCard = el('div', { class: 'stat-card' });
+            rateCard.innerHTML = `
+                <div class="stat-label">Meal Rate</div>
+                <div class="stat-value">${fmtTk(rep.mealRate)}</div>
+                <div id="mealRateChart"></div>
+                <div class="stat-sub">Based on current bazar/meals</div>
+            `;
+            stats.appendChild(rateCard);
+
+            stats.appendChild(el('div', { class: 'stat-card' },
+                el('div', { class: 'stat-label' }, 'Total Bazar'),
+                el('div', { class: 'stat-value' }, fmtTk(rep.totalBazar)),
+                el('div', { class: 'stat-sub' }, 'All members combined')
+            ));
+
+            stats.appendChild(el('div', { class: 'stat-card' },
+                el('div', { class: 'stat-label' }, 'Total Meals'),
+                el('div', { class: 'stat-value' }, rep.grandTotalMeals.toFixed(1)),
+                el('div', { class: 'stat-sub' }, state.members.length + ' members active')
+            ));
+
+            stats.appendChild(el('div', { class: 'stat-card' },
+                el('div', { class: 'stat-label' }, 'Mess Balance'),
+                el('div', { class: 'stat-value' }, fmtTk(rep.results.reduce((s, r) => s + r.finalBalance, 0))),
+                el('div', { class: 'stat-sub' }, 'Net surplus/deficit')
+            ));
+
+            container.appendChild(stats);
+
+            // Render Chart
+            setTimeout(() => {
+                const keys = Object.keys(state.months).sort();
+                const history = keys.map(k => {
+                    const r = calcReport(state.months[k], state.members);
+                    return r.perMealRate;
+                });
+                if (history.length > 1) {
+                    renderMiniChart($('#mealRateChart'), history, 'var(--accent)');
+                } else {
+                    $('#mealRateChart').innerHTML = '<div style="font-size:10px; color:var(--text-muted); padding-top:10px">Not enough history for chart</div>';
+                }
+            }, 0);
+
+            var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, '📊 Member Statement Summary'));
+            var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
+            ['Member', 'Meals', 'Cost', 'Deposit', 'Balance', 'Others', 'Final'].forEach(function (h) { headRow.appendChild(el('th', {}, h)); });
+            thead.appendChild(headRow); table.appendChild(thead);
+            var tbody = el('tbody');
+            rep.results.forEach(function (r, i) {
+                var tr = el('tr'), nameCell = el('td'); nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(r.name, i), r.name)); tr.appendChild(nameCell);
+                tr.appendChild(el('td', {}, r.totalMeals.toFixed(1)));
+                tr.appendChild(el('td', {}, fmtTk(r.mealCost)));
+                tr.appendChild(el('td', {}, fmtTk(r.totalBazar)));
+                tr.appendChild(el('td', { class: r.givenTake >= 0 ? 'positive' : 'negative' }, fmtTk(r.givenTake)));
+                tr.appendChild(el('td', {}, fmtTk(r.othersSpend)));
+                tr.appendChild(el('td', { class: r.finalBalance >= 0 ? 'positive' : 'negative', style: 'font-weight:700' }, fmtTk(r.finalBalance)));
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody); scroll.appendChild(table); wrap.appendChild(scroll); container.appendChild(wrap);
+        }
+
+        // ── Day Grid ──
+        function renderDayGrid(containerId, dataKey, title, subtitle) {
+            var container = $(containerId), mk = monthKey(state.currentMonth, state.currentYear), md = ensureMonthData(state, mk);
+            var days = daysInMonth(state.currentMonth, state.currentYear), data = md[dataKey];
+            container.innerHTML = '';
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, title + ' — ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, subtitle)));
+            var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, '📅 Daily ' + title));
+            var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
+            headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Member'));
+            for (var d = 1; d <= days; d++) headRow.appendChild(el('th', {}, String(d)));
+            headRow.appendChild(el('th', {}, 'Total')); thead.appendChild(headRow); table.appendChild(thead);
+            var tbody = el('tbody'), colTotals = new Array(days).fill(0), grandTotal = 0;
+            state.members.forEach(function (member, mi) {
+                var tr = el('tr'), nameCell = el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-card)' });
+                nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member)); tr.appendChild(nameCell);
+                var rowTotal = 0;
+                for (var d = 0; d < days; d++) {
+                    (function (mi2, d2) {
+                        var val = data[mi2][d2] || 0; rowTotal += val; colTotals[d2] += val;
+                        var td = el('td', {});
+                        var vUser = md.vMealsUser[mi2][d2], vAdmin = md.vMealsAdmin[mi2][d2];
+                        if (vUser && vAdmin) td.classList.add('cell-fully-verified');
+
+                        var inp = el('input', { type: 'number', class: 'grid-input', value: val || '', min: '0' });
+                        if (!canEditRecord(mi, d + 1) || (vUser && vAdmin && !isAdmin())) {
+                            inp.disabled = true;
+                            inp.title = (vUser && vAdmin) ? "Record fully verified and locked" : "Record locked";
+                        }
+                        inp.addEventListener('change', function (e) {
+                            if (!canEditRecord(mi, d + 1)) return;
+                            data[mi2][d2] = parseFloat(e.target.value) || 0;
+                            save();
+                            renderDayGrid(containerId, dataKey, title, subtitle);
+                            renderDashboard();
+                            showToast('Meal updated', 'success');
+                        });
+                        td.appendChild(inp);
+
+                        var vRow = el('div', { class: 'verification-row' });
+                        var vu = el('span', {
+                            class: 'verify-badge type-u' + (vUser ? ' v-on' : ''),
+                            title: 'Member Verification',
+                            onclick: function () { toggleVerify(mi2, d2, 'user', 'meals'); }
+                        }, 'U');
+                        var va = el('span', {
+                            class: 'verify-badge type-a' + (vAdmin ? ' v-on' : ''),
+                            title: 'Admin Verification',
+                            onclick: function () { toggleVerify(mi2, d2, 'admin', 'meals'); }
+                        }, 'A');
+                        vRow.appendChild(vu); vRow.appendChild(va);
+                        td.appendChild(vRow);
+                        tr.appendChild(td);
+                    })(mi, d);
+                }
+                grandTotal += rowTotal; tr.appendChild(el('td', { class: 'calc-cell' }, dataKey === 'meals' ? fmt(rowTotal) : fmtTk(rowTotal))); tbody.appendChild(tr);
+            });
+            var gt = el('tr', { class: 'grand-total-row' });
+            gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Grand Total'));
+            for (var d = 0; d < days; d++) gt.appendChild(el('td', { class: 'calc-cell' }, dataKey === 'meals' ? fmt(colTotals[d]) : fmtTk(colTotals[d])));
+            gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, dataKey === 'meals' ? fmt(grandTotal) : fmtTk(grandTotal)));
+            tbody.appendChild(gt); table.appendChild(tbody); scroll.appendChild(table); wrap.appendChild(scroll); container.appendChild(wrap);
+        }
+
+        function renderMeals() { renderDayGrid('#tab-meals', 'meals', 'Meal Tracking', 'Enter daily meal count for each member'); }
+
+        function renderBazar() {
+            var container = $('#tab-bazar'); container.innerHTML = '';
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'Bazar Costs — ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, 'Track grocery spending and miscellaneous costs per member per day')));
+            var s1 = el('div', { id: 'bazar-main-grid' }); container.appendChild(s1);
+            renderBazarGrid('#bazar-main-grid', 'bazar', '🛒 Bazar Cost (TK)');
+            container.appendChild(el('div', { class: 'section-heading' }, '📦 Others / Miscellaneous Cost'));
+            var s2 = el('div', { id: 'bazar-others-grid' }); container.appendChild(s2);
+            renderBazarGrid('#bazar-others-grid', 'bazarOthers', '🧹 Bazar Others Cost (TK)');
+        }
+
+        function renderBazarGrid(sel, dataKey, title) {
+            var target = $(sel), mk = monthKey(state.currentMonth, state.currentYear), md = ensureMonthData(state, mk);
+            var days = daysInMonth(state.currentMonth, state.currentYear), data = md[dataKey];
+            target.innerHTML = '';
+            var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, title));
+            var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
+            headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Member'));
+            for (var d = 1; d <= days; d++) headRow.appendChild(el('th', {}, String(d)));
+            headRow.appendChild(el('th', {}, 'Total')); thead.appendChild(headRow); table.appendChild(thead);
+            var tbody = el('tbody'), colTotals = new Array(days).fill(0), grandTotal = 0;
+            state.members.forEach(function (member, mi) {
+                var tr = el('tr'), nameCell = el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-card)' });
+                nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member)); tr.appendChild(nameCell);
+                var rowTotal = 0;
+                for (var d = 0; d < days; d++) {
+                    (function (mi2, d2) {
+                        var val = data[mi2][d2] || 0; rowTotal += val; colTotals[d2] += val;
+                        var td = el('td', {});
+                        var vUKey = dataKey === 'bazar' ? 'vBazarUser' : 'vBazarOthersUser';
+                        var vAKey = dataKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin';
+                        var vUser = md[vUKey][mi2][d2], vAdmin = md[vAKey][mi2][d2];
+                        if (vUser && vAdmin) td.classList.add('cell-fully-verified');
+
+                        var inp = el('input', { type: 'number', class: 'grid-input', value: val || '', min: '0' });
+                        if (!canEditRecord(mi, d + 1) || (vUser && vAdmin && !isAdmin())) {
+                            inp.disabled = true;
+                            inp.title = (vUser && vAdmin) ? "Record fully verified and locked" : "Record locked";
+                        }
+                        inp.addEventListener('change', function (e) {
+                            if (!canEditRecord(mi, d + 1)) return;
+                            data[mi2][d2] = parseFloat(e.target.value) || 0;
+                            save();
+                            renderBazar();
+                            renderDashboard();
+                            showToast('Cost updated', 'success');
+                        });
+                        td.appendChild(inp);
+
+                        var vRow = el('div', { class: 'verification-row' });
+                        var vu = el('span', {
+                            class: 'verify-badge type-u' + (vUser ? ' v-on' : ''),
+                            title: 'Member Verification',
+                            onclick: function () { toggleVerify(mi2, d2, 'user', dataKey); }
+                        }, 'U');
+                        var va = el('span', {
+                            class: 'verify-badge type-a' + (vAdmin ? ' v-on' : ''),
+                            title: 'Admin Verification',
+                            onclick: function () { toggleVerify(mi2, d2, 'admin', dataKey); }
+                        }, 'A');
+                        vRow.appendChild(vu); vRow.appendChild(va);
+                        td.appendChild(vRow);
+                        tr.appendChild(td);
+                    })(mi, d);
+                }
+                grandTotal += rowTotal; tr.appendChild(el('td', { class: 'calc-cell' }, fmtTk(rowTotal))); tbody.appendChild(tr);
+            });
+            var gt = el('tr', { class: 'grand-total-row' });
+            gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Grand Total'));
+            for (var d = 0; d < days; d++) gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(colTotals[d])));
+            gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmtTk(grandTotal)));
+            tbody.appendChild(gt); table.appendChild(tbody); scroll.appendChild(table); wrap.appendChild(scroll); target.appendChild(wrap);
+        }
+
+        // ── Rent (with access control) ──
+        function renderRent() {
+            var container = $('#tab-rent'), mk = monthKey(state.currentMonth, state.currentYear), md = ensureMonthData(state, mk);
+            var canSeeAll = isAdmin() || rentUnlocked;
+            container.innerHTML = '';
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'House Rent & Utilities — ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, canSeeAll ? 'Full view — all members' : 'Showing your rent only. Enter admin password to see all.')));
+
+            // Unlock bar for non-admins
+            if (!isAdmin() && !rentUnlocked) {
+                var bar = el('div', { class: 'unlock-bar' });
+                bar.appendChild(el('span', {}, '🔒 '));
+                var pwInp = el('input', { type: 'password', placeholder: 'Admin password to view all…' });
+                var msgSpan = el('span', { class: 'unlock-msg' });
+                var unlockBtn = el('button', {
+                    class: 'unlock-btn', onClick: function () {
+                        var pw = getPasswords();
+                        if (pwInp.value === pw['ALIF']) { rentUnlocked = true; renderRent(); }
+                        else { msgSpan.textContent = 'Wrong password'; }
+                    }
+                }, '🔓 Unlock All');
+                bar.appendChild(pwInp); bar.appendChild(unlockBtn); bar.appendChild(msgSpan);
+                container.appendChild(bar);
+            }
+
+            // Utility bills (visible to all — read-only for non-admin)
+            container.appendChild(el('div', { class: 'section-heading' }, '💡 Monthly Bills'));
+            var formGrid = el('div', { class: 'form-grid' });
+            UTILITY_FIELDS.forEach(function (f) {
+                var fg = el('div', { class: 'form-group' }); fg.appendChild(el('label', {}, f.label));
+                var inp = el('input', { type: 'number', value: md.utilities[f.key] || '', placeholder: '0' });
+                if (!isAdmin()) inp.setAttribute('readonly', true);
+                inp.addEventListener('change', function (e) { if (!isAdmin()) return; md.utilities[f.key] = parseFloat(e.target.value) || 0; save(); renderRent(); });
+                fg.appendChild(inp);
+                var divRow = el('div', { class: 'form-row', style: 'margin-top:8px' }); divRow.appendChild(el('label', {}, 'Divide by:'));
+                var sel = el('select', { class: 'divide-select' });
+                if (!isAdmin()) sel.setAttribute('disabled', true);
+                [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (n) { var o = el('option', { value: n }, '÷' + n); if ((md.utilityDivisors[f.key] || f.divideBy) === n) o.selected = true; sel.appendChild(o); });
+                sel.addEventListener('change', function (e) { if (!isAdmin()) return; md.utilityDivisors[f.key] = +e.target.value; save(); renderRent(); });
+                divRow.appendChild(sel); fg.appendChild(divRow); formGrid.appendChild(fg);
+            });
+            var totalUtility = UTILITY_FIELDS.reduce(function (s, f) { return s + (md.utilities[f.key] || 0); }, 0);
+            var totalCard = el('div', { class: 'form-group', style: 'border-color:var(--accent)' });
+            totalCard.appendChild(el('label', {}, 'Total Bills'));
+            totalCard.appendChild(el('div', { style: 'font-size:22px;font-weight:700;color:var(--accent)' }, fmtTk(totalUtility)));
+            formGrid.appendChild(totalCard); container.appendChild(formGrid);
+
+            container.appendChild(el('div', { class: 'section-heading' }, '👥 Per-Member Breakdown'));
+            var rentRows = calcRent(md, state.members);
+
+            // Filter rows: non-admin only sees own row unless unlocked
+            var visibleRows = [];
+            rentRows.forEach(function (r, i) {
+                if (canSeeAll || r.name === currentUser) visibleRows.push({ row: r, idx: i });
+            });
+
+            var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, '🏠 Rent & Utilities Split'));
+            var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
+            ['Member'].concat(UTILITY_FIELDS.map(function (f) { return f.label; })).concat(['Service Total', 'Rent', 'Grand Total', 'Paid', 'Yet to Pay']).forEach(function (h) { headRow.appendChild(el('th', {}, h)); });
+            thead.appendChild(headRow); table.appendChild(thead);
+            var tbody = el('tbody'), sumService = 0, sumRent = 0, sumTotal = 0, sumPaid = 0, sumYet = 0;
+            visibleRows.forEach(function (item) {
+                var r = item.row, i = item.idx;
+                var tr = el('tr'), nameCell = el('td'); nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(r.name, i), r.name)); tr.appendChild(nameCell);
+                UTILITY_FIELDS.forEach(function (f) { tr.appendChild(el('td', { class: 'calc-cell' }, fmtTk(r.shares[f.key]))); });
+                tr.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:600' }, fmtTk(r.serviceTotal))); sumService += r.serviceTotal;
+                var rentInp = el('input', { type: 'number', class: 'grid-input wide', value: r.rent || '', placeholder: '0' });
+                if (!isAdmin()) rentInp.setAttribute('readonly', true);
+                rentInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.rent[i] = parseFloat(e.target.value) || 0; save(); renderRent(); });
+                tr.appendChild(el('td', {}, rentInp));
+                tr.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:700' }, fmtTk(r.total))); sumTotal += r.total;
+                var paidInp = el('input', { type: 'number', class: 'grid-input wide', value: r.paid || '', placeholder: '0' });
+                if (!isAdmin()) paidInp.setAttribute('readonly', true);
+                paidInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.rentPaid[i] = parseFloat(e.target.value) || 0; save(); renderRent(); });
+                tr.appendChild(el('td', {}, paidInp));
+                tr.appendChild(el('td', { class: r.yet > 0 ? 'negative' : 'positive', style: 'font-weight:700' }, fmtTk(r.yet)));
+                sumRent += r.rent; sumPaid += r.paid; sumYet += r.yet; tbody.appendChild(tr);
+            });
+            if (canSeeAll) {
+                var gt = el('tr', { class: 'grand-total-row' }); gt.appendChild(el('td', {}, 'Grand Total'));
+                UTILITY_FIELDS.forEach(function () { gt.appendChild(el('td', {}, '')); });
+                gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumService))); gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumRent)));
+                gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmtTk(sumTotal))); gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumPaid)));
+                gt.appendChild(el('td', { class: sumYet > 0 ? 'negative' : 'positive', style: 'font-weight:800' }, fmtTk(sumYet)));
+                tbody.appendChild(gt);
+            }
+            table.appendChild(tbody); scroll.appendChild(table); wrap.appendChild(scroll); container.appendChild(wrap);
+            var legend = el('div', { class: 'table-wrap', style: 'padding:16px 18px;font-size:12px;color:var(--text-secondary);line-height:1.8' });
+            legend.innerHTML = '<strong style="color:var(--text-primary)">📐 Formulas Used</strong><br><code style="color:var(--accent)">Per Utility Share</code> = Bill Amount ÷ Divisor &nbsp;|&nbsp;<code style="color:var(--accent)">Service Total</code> = SUM(all utility shares) &nbsp;|&nbsp;<code style="color:var(--accent)">Grand Total</code> = Service Total + Rent &nbsp;|&nbsp;<code style="color:var(--accent)">Yet to Pay</code> = Grand Total − Paid';
+            container.appendChild(legend);
+        }
+
+        // ── History (with access control) ──
+        function renderHistory() {
+            var container = $('#tab-history'); container.innerHTML = '';
+            var canSeeAll = isAdmin() || historyUnlocked;
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'Balance History'), el('p', {}, canSeeAll ? 'Full view — all members' : 'Showing your history only. Enter admin password to see all.')));
+
+            // Unlock bar for non-admins
+            if (!isAdmin() && !historyUnlocked) {
+                var bar = el('div', { class: 'unlock-bar' });
+                bar.appendChild(el('span', {}, '🔒 '));
+                var pwInp = el('input', { type: 'password', placeholder: 'Admin password to view all…' });
+                var msgSpan = el('span', { class: 'unlock-msg' });
+                var unlockBtn = el('button', {
+                    class: 'unlock-btn', onClick: function () {
+                        var pw = getPasswords();
+                        if (pwInp.value === pw['ALIF']) { historyUnlocked = true; renderHistory(); }
+                        else { msgSpan.textContent = 'Wrong password'; }
+                    }
+                }, '🔓 Unlock All');
+                bar.appendChild(pwInp); bar.appendChild(unlockBtn); bar.appendChild(msgSpan);
+                container.appendChild(bar);
+            }
+
+            var monthKeys = Object.keys(state.months).sort();
+            if (monthKeys.length === 0) { container.appendChild(el('div', { class: 'table-wrap', style: 'padding:20px;text-align:center;color:var(--text-muted)' }, 'No data yet. Start entering meals and bazar costs to see history.')); return; }
+            var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, '📜 Monthly Balance Summary'));
+            var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
+            headRow.appendChild(el('th', {}, 'Member'));
+            monthKeys.forEach(function (mk) { var p = mk.split('-'); headRow.appendChild(el('th', {}, MONTH_NAMES[+p[1] - 1].slice(0, 3) + ' ' + p[0])); });
+            headRow.appendChild(el('th', {}, 'Total')); thead.appendChild(headRow); table.appendChild(thead);
+            var tbody = el('tbody');
+            state.members.forEach(function (member, mi) {
+                if (!canSeeAll && member !== currentUser) return; // filter
+                var tr = el('tr'), nameCell = el('td'); nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member)); tr.appendChild(nameCell);
+                var total = 0;
+                monthKeys.forEach(function (mk) { var md = ensureMonthData(state, mk), r = calcReport(md, state.members).results[mi], bal = r ? r.finalBalance : 0; total += bal; tr.appendChild(el('td', { class: bal >= 0 ? 'positive' : 'negative' }, fmtTk(bal))); });
+                tr.appendChild(el('td', { class: total >= 0 ? 'positive' : 'negative', style: 'font-weight:700' }, fmtTk(total))); tbody.appendChild(tr);
+            });
+            table.appendChild(tbody); scroll.appendChild(table); wrap.appendChild(scroll); container.appendChild(wrap);
+
+            // Notes section — admin only can edit, others see own row only
+            container.appendChild(el('div', { class: 'section-heading' }, '📝 Notes & Ledger'));
+            var mk = monthKey(state.currentMonth, state.currentYear), md = ensureMonthData(state, mk);
+            var nWrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, 'Notes for ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear));
+            var nScroll = el('div', { class: 'table-scroll' }), nTable = el('table'), nThead = el('thead'), nHr = el('tr');
+            ['Member', 'Balance Override', 'Status'].forEach(function (h) { nHr.appendChild(el('th', {}, h)); });
+            nThead.appendChild(nHr); nTable.appendChild(nThead);
+            var nTbody = el('tbody');
+            state.members.forEach(function (member, mi) {
+                if (!canSeeAll && member !== currentUser) return; // filter
+                var tr = el('tr'), nameCell = el('td'); nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member)); tr.appendChild(nameCell);
+                var balInp = el('input', { type: 'number', class: 'grid-input wide', value: md.historyBalances[mi] || '', placeholder: '0' });
+                if (!isAdmin()) balInp.setAttribute('readonly', true);
+                balInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.historyBalances[mi] = parseFloat(e.target.value) || 0; save(); });
+                tr.appendChild(el('td', {}, balInp));
+                var sSel = el('select', { class: 'divide-select', style: 'min-width:80px' });
+                if (!isAdmin()) sSel.setAttribute('disabled', true);
+                ['', 'paid', 'unpaid'].forEach(function (s) { var o = el('option', { value: s }, s || '—'); if (md.historyStatus[mi] === s) o.selected = true; sSel.appendChild(o); });
+                sSel.addEventListener('change', function (e) { if (!isAdmin()) return; md.historyStatus[mi] = e.target.value; save(); });
+                tr.appendChild(el('td', {}, sSel)); nTbody.appendChild(tr);
+            });
+            nTable.appendChild(nTbody); nScroll.appendChild(nTable); nWrap.appendChild(nScroll); container.appendChild(nWrap);
+        }
+
+        // ── Admin Panel ──
+        function renderAdmin() {
+            var container = $('#tab-admin'); container.innerHTML = '';
+            if (!isAdmin()) { container.appendChild(el('div', { class: 'table-wrap', style: 'padding:20px;text-align:center;color:var(--text-muted)' }, '🔒 Admin access only.')); return; }
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, '⚙️ Admin Panel'), el('p', {}, 'Manage member passwords — only you (ALIF) can see this page')));
+            container.appendChild(el('div', { class: 'section-heading' }, '🔑 Member Passwords'));
+            var passwords = getPasswords();
+            var grid = el('div', { class: 'form-grid' });
+            state.members.forEach(function (member, mi) {
+                var fg = el('div', { class: 'form-group' });
+                fg.appendChild(el('label', {}, member + (member === 'ALIF' ? ' (Admin)' : '')));
+                var inp = el('input', { type: 'text', value: passwords[member] || '', placeholder: 'Set password' });
+                inp.addEventListener('change', function (e) {
+                    passwords[member] = e.target.value;
+                    savePasswords(passwords);
+                    renderAdmin(); // refresh to show saved state
+                });
+                fg.appendChild(inp);
+                fg.appendChild(el('div', { style: 'font-size:11px;color:var(--text-muted);margin-top:6px' }, '✅ Password set'));
+                grid.appendChild(fg);
+            });
+            container.appendChild(grid);
+            var info = el('div', { class: 'table-wrap', style: 'padding:16px 18px;font-size:12px;color:var(--text-secondary);line-height:1.8' });
+            info.innerHTML = '<strong style="color:var(--text-primary)">ℹ️ Access Rules</strong><br>• All users must log in with their password to enter the app<br>• Non-admin users see <strong>only their own row</strong> in Rent and History<br>• Non-admin users can enter admin password to <strong>temporarily unlock</strong> full view<br>• Only ALIF can edit rent values, utility bills, and history notes<br>• Session ends when the browser tab is closed';
+            container.appendChild(info);
+        }
+
+        // ── Management Tab ──
+        function renderMgmt() {
+            var container = $('#tab-mgmt'); container.innerHTML = '';
+            if (!isAdmin()) { container.appendChild(el('div', { class: 'table-wrap', style: 'padding:20px;text-align:center;color:var(--text-muted)' }, '🔒 Admin access only.')); return; }
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, '🛠️ System Management'), el('p', {}, 'Configure mess settings, manage members, and backup data')));
+
+            // Data Operations
+            container.appendChild(el('div', { class: 'section-heading' }, '💾 Data Operations'));
+            var grid = el('div', { class: 'form-grid' });
+            // Export
+            var exCard = el('div', { class: 'form-group' });
+            exCard.appendChild(el('label', {}, 'Backup Data'));
+            var exBtn = el('button', { class: 'unlock-btn', style: 'width:100%', onClick: exportData }, '📥 Download Backup (JSON)');
+            exCard.appendChild(exBtn); grid.appendChild(exCard);
+            // Import
+            var imCard = el('div', { class: 'form-group' });
+            imCard.appendChild(el('label', {}, 'Restore Data'));
+            var fileInp = el('input', { type: 'file', style: 'display:none', id: 'importFile', accept: '.json' });
+            fileInp.addEventListener('change', importData);
+            var imBtn = el('button', { class: 'unlock-btn', style: 'width:100%; border-color:var(--amber); background:var(--amber-bg); color:var(--amber)', onClick: () => $('#importFile').click() }, '📤 Restore from File');
+            imCard.appendChild(fileInp); imCard.appendChild(imBtn); grid.appendChild(imCard);
+            // Reset
+            var reCard = el('div', { class: 'form-group' });
+            reCard.appendChild(el('label', {}, 'Danger Zone'));
+            var reBtn = el('button', { class: 'unlock-btn', style: 'width:100%; background:var(--red-bg); color:var(--red); border-color:var(--red)', onClick: resetAllData }, '🗑️ Reset All Data');
+            reCard.appendChild(reBtn); grid.appendChild(reCard);
+            container.appendChild(grid);
+
+            // Member Management
+            container.appendChild(el('div', { class: 'section-heading' }, '👥 Member Management'));
+            var mWrap = el('div', { class: 'table-wrap' });
+            var mTable = el('table'), mTbody = el('tbody');
+            state.members.forEach((m, i) => {
+                var tr = el('tr');
+                tr.appendChild(el('td', { style: 'width:40px' }, avatar(m, i)));
+                tr.appendChild(el('td', { style: 'font-weight:600' }, m));
+                var delTd = el('td', { style: 'text-align:right' });
+                if (m !== 'ALIF') {
+                    var delBtn = el('button', { class: 'unlock-btn', style: 'padding:4px 8px; font-size:10px; background:var(--red-bg); color:var(--red)', onClick: () => removeMember(m) }, 'Remove');
+                    delTd.appendChild(delBtn);
+                }
+                tr.appendChild(delTd); mTbody.appendChild(tr);
+            });
+            mTable.appendChild(mTbody); mWrap.appendChild(mTable);
+
+            var addBox = el('div', { style: 'padding:16px; display:flex; gap:8px; border-top:1px solid var(--border)' });
+            var addInp = el('input', { type: 'text', class: 'grid-input wide', id: 'newMemberName', placeholder: 'New member name...' });
+            var addBtn = el('button', { class: 'unlock-btn', onClick: addMember }, 'Add Member');
+            addBox.appendChild(addInp); addBox.appendChild(addBtn);
+            mWrap.appendChild(addBox); container.appendChild(mWrap);
+        }
+
+        function exportData() {
+            const data = { state: state, passwords: getPasswords() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mess_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast('Backup downloaded successfully!', 'success');
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.state && data.passwords) {
+                        state = data.state;
+                        save();
+                        savePasswords(data.passwords);
+                        renderAll();
+                        showToast('Data restored successfully!', 'success');
+                    } else throw new Error('Invalid file format');
+                } catch (err) {
+                    showToast('Failed to import: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetAllData() {
+            if (confirm('CRITICAL: This will delete ALL meal records, bazar costs, and rent history. This cannot be undone. Are you absolutely sure?')) {
+                state = defaultState();
+                save();
+                renderAll();
+                showToast('All records cleared.', 'info');
+            }
+        }
+
+        function addMember() {
+            var name = $('#newMemberName').value.trim().toUpperCase();
+            if (!name) return;
+            if (state.members.includes(name)) { showToast('Member already exists!', 'error'); return; }
+            state.members.push(name);
+            save();
+            var pw = getPasswords();
+            pw[name] = '1234';
+            savePasswords(pw);
+            renderMgmt();
+            showToast(name + ' added to mess.', 'success');
+        }
+
+        function removeMember(name) {
+            if (!confirm(`Are you sure you want to remove ${name}? Historical data for this member might be lost in calculations.`)) return;
+            state.members = state.members.filter(m => m !== name);
+            save();
+            renderMgmt();
+            showToast(name + ' removed.', 'info');
+        }
+
+        function renderAll() { renderDashboard(); renderMeals(); renderBazar(); renderRent(); renderHistory(); renderAdmin(); renderMgmt(); }
+
+        // ── Theme ──
+        function initTheme() {
+            var saved = localStorage.getItem('messTheme') || 'dark'; applyTheme(saved);
+            $('#themeToggle').addEventListener('click', function () {
+                var current = document.documentElement.getAttribute('data-theme');
+                var next = current === 'light' ? 'dark' : 'light'; applyTheme(next); localStorage.setItem('messTheme', next);
+            });
+        }
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            $('#themeIcon').textContent = theme === 'light' ? '☀️' : '🌙';
+            $('#themeLabel').textContent = theme === 'light' ? 'Light Mode' : 'Dark Mode';
+        }
+
+        // ── Init ──
+        load(); initNav(); initSelectors(); initTheme(); initLogin();
+    </script>
+</body>
+
+</html>
