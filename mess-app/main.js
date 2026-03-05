@@ -681,7 +681,7 @@ function renderBazar() {
     state.members.forEach((m, mi) => {
       const count = md.bazarSlots.filter(s => s === m).length;
       const dot = el('div', { class: 'slot-legend-item' });
-      dot.appendChild(el('span', { class: 'slot-dot', style: `background:${MEMBER_COLORS[mi % MEMBER_COLORS.length]}` }));
+      dot.appendChild(el('span', { class: 'slot-dot', style: `background:${COLORS[mi % COLORS.length]}` }));
       dot.appendChild(el('span', {}, `${m} (${count}d)`));
       legend.appendChild(dot);
     });
@@ -692,7 +692,7 @@ function renderBazar() {
       ((dayIdx) => {
         const assigned = md.bazarSlots[dayIdx] || '?';
         const mi = state.members.indexOf(assigned);
-        const color = mi >= 0 ? MEMBER_COLORS[mi % MEMBER_COLORS.length] : '#555';
+        const color = mi >= 0 ? COLORS[mi % COLORS.length] : '#555';
         const dayEl = el('div', {
           class: 'slot-day',
           style: `background:${color}22; border-color:${color}`,
@@ -709,7 +709,7 @@ function renderBazar() {
             state.members.forEach((m, idx) => {
               content.appendChild(el('button', {
                 class: 'login-btn',
-                style: `margin-bottom:8px; background:${MEMBER_COLORS[idx % MEMBER_COLORS.length]}`,
+                style: `margin-bottom:8px; background:${COLORS[idx % COLORS.length]}`,
                 onclick: () => {
                   md.bazarSlots[dayIdx] = m;
                   save();

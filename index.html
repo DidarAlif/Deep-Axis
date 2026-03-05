@@ -1928,7 +1928,7 @@
                 state.members.forEach(function (m, mi) {
                     var count = md.bazarSlots.filter(function (s) { return s === m; }).length;
                     var dot = el('div', { class: 'slot-legend-item' });
-                    dot.appendChild(el('span', { class: 'slot-dot', style: 'background:' + MEMBER_COLORS[mi % MEMBER_COLORS.length] }));
+                    dot.appendChild(el('span', { class: 'slot-dot', style: 'background:' + COLORS[mi % COLORS.length] }));
                     dot.appendChild(el('span', {}, m + ' (' + count + 'd)'));
                     legend.appendChild(dot);
                 });
@@ -1939,7 +1939,7 @@
                     (function (dayIdx) {
                         var assigned = md.bazarSlots[dayIdx] || '?';
                         var mi = state.members.indexOf(assigned);
-                        var color = mi >= 0 ? MEMBER_COLORS[mi % MEMBER_COLORS.length] : '#555';
+                        var color = mi >= 0 ? COLORS[mi % COLORS.length] : '#555';
                         var dayEl = el('div', {
                             class: 'slot-day',
                             style: 'background:' + color + '22; border-color:' + color,
@@ -1956,7 +1956,7 @@
                                 state.members.forEach(function (m, idx) {
                                     var btn = el('button', {
                                         class: 'login-btn',
-                                        style: 'margin-bottom:8px; background:' + MEMBER_COLORS[idx % MEMBER_COLORS.length],
+                                        style: 'margin-bottom:8px; background:' + COLORS[idx % COLORS.length],
                                         onclick: function () {
                                             md.bazarSlots[dayIdx] = m;
                                             save();
