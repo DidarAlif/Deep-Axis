@@ -234,6 +234,7 @@ function load() {
   if (raw) {
     try { state = JSON.parse(raw); } catch (e) { state = defaultState(); }
   }
+  hydratePasswordsFromLocal();
 }
 
 function initFirebase() {
@@ -242,6 +243,7 @@ function initFirebase() {
     if (data) {
       state = data;
       if (!Array.isArray(state.members)) state.members = [...DEFAULT_MEMBERS];
+      hydratePasswordsFromLocal();
       localStorage.setItem('messManagerState', JSON.stringify(state));
       if (_skipNextRender) {
         _skipNextRender = false;
@@ -428,23 +430,36 @@ function initNav() {
 }
 
 // ── Auth System ──
-function getPasswords() {
-  if (state.passwords && Object.keys(state.passwords).length > 0) return state.passwords;
+function persistPasswords(pw) {
+  state.passwords = pw || {};
+  localStorage.setItem('messPasswords', JSON.stringify(state.passwords));
+}
+
+function hydratePasswordsFromLocal() {
+  if (state.passwords && Object.keys(state.passwords).length > 0) {
+    localStorage.setItem('messPasswords', JSON.stringify(state.passwords));
+    return;
+  }
   const raw = localStorage.getItem('messPasswords');
   if (raw) {
     try {
       const pw = JSON.parse(raw);
-      if (Object.keys(pw).length > 0) return pw;
+      if (pw && Object.keys(pw).length > 0) state.passwords = pw;
     } catch (e) { }
   }
+}
+
+function getPasswords() {
+  hydratePasswordsFromLocal();
+  if (state.passwords && Object.keys(state.passwords).length > 0) return state.passwords;
   const pw = {};
-  DEFAULT_MEMBERS.forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
+  (state.members || DEFAULT_MEMBERS).forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
+  persistPasswords(pw);
   return pw;
 }
 function savePasswords(pw) {
-  state.passwords = pw;
+  persistPasswords(pw);
   save();
-  localStorage.setItem('messPasswords', JSON.stringify(pw));
 }
 function isAdmin() { return currentUser === 'ALIF'; }
 
