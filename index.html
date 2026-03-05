@@ -884,6 +884,68 @@
             margin-top: 0;
         }
 
+        /* Overrides & Modal */
+        .excluded-cell {
+            color: var(--text-muted);
+            background: rgba(128, 128, 128, 0.05);
+            text-decoration: line-through;
+            font-size: 0.85em;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none;
+        }
+
+        .mini-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font);
+        }
+
+        .mini-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         /* Login Overlay */
         .login-overlay {
             position: fixed;
@@ -1324,6 +1386,8 @@
                     utilities: {}, utilityDivisors: {},
                     rent: st.members.map(function (m) { return DEFAULT_RENT[m] || 0; }),
                     rentPaid: new Array(n).fill(0),
+                    rentExclusions: {}, // { "memberIdx_utilityKey": true }
+                    rentExtras: new Array(n).fill(0),
                     historyBalances: new Array(n).fill(0),
                     historyStatus: new Array(n).fill(''),
                 };
@@ -1344,6 +1408,9 @@
 
             while (md.rent.length < n) md.rent.push(0);
             while (md.rentPaid.length < n) md.rentPaid.push(0);
+            if (!md.rentExclusions) md.rentExclusions = {};
+            if (!md.rentExtras) md.rentExtras = new Array(n).fill(0);
+            while (md.rentExtras.length < n) md.rentExtras.push(0);
             while (md.historyBalances.length < n) md.historyBalances.push(0);
             while (md.historyStatus.length < n) md.historyStatus.push('');
             return md;
@@ -1508,12 +1575,32 @@
             for (var i = 0; i < n; i++) {
                 var shares = {}, serviceTotal = 0;
                 UTILITY_FIELDS.forEach(function (f) {
+                    // Check exclusion
+                    if (md.rentExclusions[i + '_' + f.key]) {
+                        shares[f.key] = 0;
+                        return;
+                    }
+
+                    // Calculate divisor based on current exclusions for this field
+                    var excludedCount = 0;
+                    for (var j = 0; j < n; j++) {
+                        if (md.rentExclusions[j + '_' + f.key]) excludedCount++;
+                    }
+
+                    var activeCount = n - excludedCount;
                     var divisor = md.utilityDivisors[f.key] || f.divideBy;
-                    var val = divisor > 0 ? (md.utilities[f.key] || 0) / divisor : 0;
-                    shares[f.key] = val; serviceTotal += val;
+                    // If divisor is default (n), we use activeCount. Otherwise use the manual divisor.
+                    var actualDivisor = (divisor === f.divideBy) ? activeCount : divisor;
+
+                    var val = actualDivisor > 0 ? (md.utilities[f.key] || 0) / actualDivisor : 0;
+                    shares[f.key] = val;
+                    serviceTotal += val;
                 });
-                var rent = md.rent[i] || 0, total = serviceTotal + rent, paid = md.rentPaid[i] || 0, yet = total - paid;
-                rows.push({ name: members[i], shares: shares, serviceTotal: serviceTotal, rent: rent, total: total, paid: paid, yet: yet });
+                var rent = md.rent[i] || 0;
+                var extra = md.rentExtras[i] || 0;
+                var total = serviceTotal + rent + extra;
+                var paid = md.rentPaid[i] || 0, yet = total - paid;
+                rows.push({ name: members[i], shares: shares, serviceTotal: serviceTotal, rent: rent, extra: extra, total: total, paid: paid, yet: yet });
             }
             return rows;
         }
@@ -1848,7 +1935,40 @@
                 if (!isAdmin()) sel.setAttribute('disabled', true);
                 [1, 2, 3, 4, 5, 6, 7, 8].forEach(function (n) { var o = el('option', { value: n }, '÷' + n); if ((md.utilityDivisors[f.key] || f.divideBy) === n) o.selected = true; sel.appendChild(o); });
                 sel.addEventListener('change', function (e) { if (!isAdmin()) return; md.utilityDivisors[f.key] = +e.target.value; save(); renderRent(); });
-                divRow.appendChild(sel); fg.appendChild(divRow); formGrid.appendChild(fg);
+                divRow.appendChild(sel); fg.appendChild(divRow);
+
+                if (isAdmin()) {
+                    var exBtn = el('button', {
+                        class: 'mini-btn',
+                        style: 'margin-top:8px; width:100%',
+                        onclick: function () {
+                            var modal = el('div', { class: 'modal-overlay' });
+                            var content = el('div', { class: 'modal-content' });
+                            content.appendChild(el('h3', { style: 'margin-bottom:8px' }, 'Exclusions: ' + f.label));
+                            content.appendChild(el('p', { style: 'font-size:12px; margin-bottom:12px; color:var(--text-secondary)' }, 'Uncheck members who should NOT pay for this bill.'));
+                            state.members.forEach(function (m, mi) {
+                                var row = el('div', { class: 'toggle-row' });
+                                var key = mi + '_' + f.key;
+                                var isExcluded = md.rentExclusions[key];
+                                var chk = el('input', { type: 'checkbox', checked: !isExcluded });
+                                chk.addEventListener('change', function () {
+                                    if (chk.checked) delete md.rentExclusions[key];
+                                    else md.rentExclusions[key] = true;
+                                    save();
+                                });
+                                row.appendChild(chk);
+                                row.appendChild(el('span', {}, m));
+                                content.appendChild(row);
+                            });
+                            var close = el('button', { class: 'login-btn', style: 'margin-top:16px', onclick: function () { modal.remove(); renderRent(); } }, 'Close & Refresh');
+                            content.appendChild(close);
+                            modal.appendChild(content);
+                            document.body.appendChild(modal);
+                        }
+                    }, '⚙️ Manage Exclusions');
+                    fg.appendChild(exBtn);
+                }
+                formGrid.appendChild(fg);
             });
             var totalUtility = UTILITY_FIELDS.reduce(function (s, f) { return s + (md.utilities[f.key] || 0); }, 0);
             var totalCard = el('div', { class: 'form-group', style: 'border-color:var(--accent)' });
@@ -1867,30 +1987,44 @@
 
             var wrap = el('div', { class: 'table-wrap' }, el('div', { class: 'table-title' }, '🏠 Rent & Utilities Split'));
             var scroll = el('div', { class: 'table-scroll' }), table = el('table'), thead = el('thead'), headRow = el('tr');
-            ['Member'].concat(UTILITY_FIELDS.map(function (f) { return f.label; })).concat(['Service Total', 'Rent', 'Grand Total', 'Paid', 'Yet to Pay']).forEach(function (h) { headRow.appendChild(el('th', {}, h)); });
+            ['Member'].concat(UTILITY_FIELDS.map(function (f) { return f.label; })).concat(['Service Total', 'Rent', 'Extras', 'Grand Total', 'Paid', 'Yet to Pay']).forEach(function (h) { headRow.appendChild(el('th', {}, h)); });
             thead.appendChild(headRow); table.appendChild(thead);
-            var tbody = el('tbody'), sumService = 0, sumRent = 0, sumTotal = 0, sumPaid = 0, sumYet = 0;
+            var tbody = el('tbody'), sumService = 0, sumRent = 0, sumExtra = 0, sumTotal = 0, sumPaid = 0, sumYet = 0;
             visibleRows.forEach(function (item) {
                 var r = item.row, i = item.idx;
                 var tr = el('tr'), nameCell = el('td'); nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(r.name, i), r.name)); tr.appendChild(nameCell);
-                UTILITY_FIELDS.forEach(function (f) { tr.appendChild(el('td', { class: 'calc-cell' }, fmtTk(r.shares[f.key]))); });
+                UTILITY_FIELDS.forEach(function (f) {
+                    var val = r.shares[f.key] || 0;
+                    var td = el('td', { class: 'calc-cell' + (val === 0 ? ' excluded-cell' : '') }, fmtTk(val));
+                    if (val === 0) td.title = "Excluded from this bill";
+                    tr.appendChild(td);
+                });
                 tr.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:600' }, fmtTk(r.serviceTotal))); sumService += r.serviceTotal;
                 var rentInp = el('input', { type: 'number', class: 'grid-input wide', value: r.rent || '', placeholder: '0' });
                 if (!isAdmin()) rentInp.setAttribute('readonly', true);
                 rentInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.rent[i] = parseFloat(e.target.value) || 0; save(); renderRent(); });
                 tr.appendChild(el('td', {}, rentInp));
+
+                // Extra Input
+                var extraInp = el('input', { type: 'number', class: 'grid-input wide', value: r.extra || '', placeholder: '0' });
+                if (!isAdmin()) extraInp.setAttribute('readonly', true);
+                extraInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.rentExtras[i] = parseFloat(e.target.value) || 0; save(); renderRent(); });
+                tr.appendChild(el('td', {}, extraInp));
+
                 tr.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:700' }, fmtTk(r.total))); sumTotal += r.total;
                 var paidInp = el('input', { type: 'number', class: 'grid-input wide', value: r.paid || '', placeholder: '0' });
                 if (!isAdmin()) paidInp.setAttribute('readonly', true);
                 paidInp.addEventListener('change', function (e) { if (!isAdmin()) return; md.rentPaid[i] = parseFloat(e.target.value) || 0; save(); renderRent(); });
                 tr.appendChild(el('td', {}, paidInp));
                 tr.appendChild(el('td', { class: r.yet > 0 ? 'negative' : 'positive', style: 'font-weight:700' }, fmtTk(r.yet)));
-                sumRent += r.rent; sumPaid += r.paid; sumYet += r.yet; tbody.appendChild(tr);
+                sumRent += r.rent; sumExtra += r.extra; sumPaid += r.paid; sumYet += r.yet; tbody.appendChild(tr);
             });
             if (canSeeAll) {
                 var gt = el('tr', { class: 'grand-total-row' }); gt.appendChild(el('td', {}, 'Grand Total'));
                 UTILITY_FIELDS.forEach(function () { gt.appendChild(el('td', {}, '')); });
-                gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumService))); gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumRent)));
+                gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumService)));
+                gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumRent)));
+                gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumExtra)));
                 gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmtTk(sumTotal))); gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumPaid)));
                 gt.appendChild(el('td', { class: sumYet > 0 ? 'negative' : 'positive', style: 'font-weight:800' }, fmtTk(sumYet)));
                 tbody.appendChild(gt);

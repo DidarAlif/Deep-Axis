@@ -139,6 +139,8 @@ function ensureMonthData(st, mk) {
       utilityDivisors: {},
       rent: st.members.map(m => DEFAULT_RENT[m] || 0),
       rentPaid: new Array(n).fill(0),
+      rentExclusions: {}, // { "memberIdx_utilityKey": true }
+      rentExtras: new Array(n).fill(0),
       historyBalances: new Array(n).fill(0),
       historyStatus: new Array(n).fill(''),
     };
@@ -158,6 +160,9 @@ function ensureMonthData(st, mk) {
   });
   while (md.rent.length < n) md.rent.push(0);
   while (md.rentPaid.length < n) md.rentPaid.push(0);
+  if (!md.rentExclusions) md.rentExclusions = {};
+  if (!md.rentExtras) md.rentExtras = new Array(n).fill(0);
+  while (md.rentExtras.length < n) md.rentExtras.push(0);
   while (md.historyBalances.length < n) md.historyBalances.push(0);
   while (md.historyStatus.length < n) md.historyStatus.push('');
   return md;
@@ -223,16 +228,33 @@ function calcRent(md, members) {
     const shares = {};
     let serviceTotal = 0;
     UTILITY_FIELDS.forEach(f => {
+      // Check exclusion
+      if (md.rentExclusions[`${i}_${f.key}`]) {
+        shares[f.key] = 0;
+        return;
+      }
+
+      // Calculate divisor based on current exclusions for this field
+      let excludedCount = 0;
+      for (let j = 0; j < n; j++) {
+        if (md.rentExclusions[`${j}_${f.key}`]) excludedCount++;
+      }
+
+      const activeCount = n - excludedCount;
       const divisor = md.utilityDivisors[f.key] || f.divideBy;
-      const val = divisor > 0 ? (md.utilities[f.key] || 0) / divisor : 0;
+      // If divisor is default (n), we use activeCount. Otherwise use the manual divisor.
+      const actualDivisor = (divisor === f.divideBy) ? activeCount : divisor;
+
+      const val = actualDivisor > 0 ? (md.utilities[f.key] || 0) / actualDivisor : 0;
       shares[f.key] = val;
       serviceTotal += val;
     });
     const rent = md.rent[i] || 0;
-    const total = serviceTotal + rent; // =SUM(J,K)
+    const extra = md.rentExtras[i] || 0;
+    const total = serviceTotal + rent + extra;
     const paid = md.rentPaid[i] || 0;
-    const yet = total - paid; // =M-N
-    rows.push({ name: members[i], shares, serviceTotal, rent, total, paid, yet });
+    const yet = total - paid;
+    rows.push({ name: members[i], shares, serviceTotal, rent, extra, total, paid, yet });
   }
   return rows;
 }
@@ -778,6 +800,38 @@ function renderRent() {
     });
     divRow.appendChild(sel);
     fg.appendChild(divRow);
+
+    if (isAdmin()) {
+      const exBtn = el('button', {
+        class: 'mini-btn',
+        style: 'margin-top:8px; width:100%',
+        onclick: () => {
+          const modal = el('div', { class: 'modal-overlay' });
+          const content = el('div', { class: 'modal-content' });
+          content.appendChild(el('h3', { style: 'margin-bottom:8px' }, `Exclusions: ${f.label}`));
+          content.appendChild(el('p', { style: 'font-size:12px; margin-bottom:12px; color:var(--text-secondary)' }, 'Uncheck members who should NOT pay for this bill.'));
+          state.members.forEach((m, mi) => {
+            const row = el('div', { class: 'toggle-row' });
+            const key = `${mi}_${f.key}`;
+            const isExcluded = md.rentExclusions[key];
+            const chk = el('input', { type: 'checkbox', checked: !isExcluded });
+            chk.addEventListener('change', () => {
+              if (chk.checked) delete md.rentExclusions[key];
+              else md.rentExclusions[key] = true;
+              save();
+            });
+            row.appendChild(chk);
+            row.appendChild(el('span', {}, m));
+            content.appendChild(row);
+          });
+          const close = el('button', { class: 'login-btn', style: 'margin-top:16px', onclick: () => { modal.remove(); renderRent(); } }, 'Close & Refresh');
+          content.appendChild(close);
+          modal.appendChild(content);
+          document.body.appendChild(modal);
+        }
+      }, '⚙️ Manage Exclusions');
+      fg.appendChild(exBtn);
+    }
     formGrid.appendChild(fg);
   });
 
@@ -801,7 +855,7 @@ function renderRent() {
 
   const thead = el('thead');
   const headRow = el('tr');
-  ['Member'].concat(UTILITY_FIELDS.map(f => f.label)).concat(['Service Total', 'Rent', 'Grand Total', 'Paid', 'Yet to Pay']).forEach(h => {
+  ['Member'].concat(UTILITY_FIELDS.map(f => f.label)).concat(['Service Total', 'Rent', 'Extras', 'Grand Total', 'Paid', 'Yet to Pay']).forEach(h => {
     headRow.appendChild(el('th', {}, h));
   });
   thead.appendChild(headRow);
