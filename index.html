@@ -946,6 +946,69 @@
             color: var(--accent);
         }
 
+        /* Bazar Slot Calendar */
+        .slot-calendar {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .slot-day {
+            border: 2px solid;
+            border-radius: 10px;
+            padding: 6px 4px;
+            text-align: center;
+            transition: all 0.2s;
+            min-height: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .slot-day:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .slot-day-num {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .slot-day-name {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .slot-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .slot-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .slot-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
         /* Login Overlay */
         .login-overlay {
             position: fixed;
@@ -1388,6 +1451,7 @@
                     rentPaid: new Array(n).fill(0),
                     rentExclusions: {}, // { "memberIdx_utilityKey": true }
                     rentExtras: new Array(n).fill(0),
+                    bazarSlots: [], // array of length = days, each entry = member name
                     historyBalances: new Array(n).fill(0),
                     historyStatus: new Array(n).fill(''),
                 };
@@ -1411,6 +1475,7 @@
             if (!md.rentExclusions) md.rentExclusions = {};
             if (!md.rentExtras) md.rentExtras = new Array(n).fill(0);
             while (md.rentExtras.length < n) md.rentExtras.push(0);
+            if (!md.bazarSlots) md.bazarSlots = [];
             while (md.historyBalances.length < n) md.historyBalances.push(0);
             while (md.historyStatus.length < n) md.historyStatus.push('');
             return md;
@@ -1826,12 +1891,101 @@
 
         function renderBazar() {
             var container = $('#tab-bazar'); container.innerHTML = '';
-            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'Bazar Costs — ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, 'Track grocery spending and miscellaneous costs per member per day')));
+            var mk = monthKey(state.currentMonth, state.currentYear);
+            var md = ensureMonthData(state, mk);
+            var days = daysInMonth(state.currentMonth, state.currentYear);
+            container.appendChild(el('div', { class: 'page-header' }, el('h2', {}, 'Bazar Costs \u2014 ' + MONTH_NAMES[state.currentMonth] + ' ' + state.currentYear), el('p', {}, 'Track grocery spending and miscellaneous costs per member per day')));
+
+            // ── Bazar Duty Slots Section ──
+            container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udcc5 Bazar Duty Slots'));
+            var slotWrap = el('div', { class: 'table-wrap', style: 'padding:18px' });
+
+            if (isAdmin()) {
+                var genBtn = el('button', {
+                    class: 'login-btn', style: 'margin-bottom:16px;max-width:300px',
+                    onclick: function () {
+                        var n = state.members.length;
+                        var base = Math.floor(days / n);
+                        var remainder = days % n;
+                        var slots = [];
+                        var alifIdx = state.members.indexOf('ALIF');
+                        if (alifIdx < 0) alifIdx = 0;
+                        state.members.forEach(function (m, mi) {
+                            var count = base + (mi === alifIdx ? remainder : 0);
+                            for (var j = 0; j < count; j++) slots.push(m);
+                        });
+                        md.bazarSlots = slots;
+                        save();
+                        renderBazar();
+                        showToast('Slots generated! ALIF gets ' + (base + remainder) + ' days, others get ' + base + '.', 'success');
+                    }
+                }, '\u2699\ufe0f Generate Slots (' + days + ' days \u00f7 ' + state.members.length + ' members)');
+                slotWrap.appendChild(genBtn);
+            }
+
+            if (md.bazarSlots && md.bazarSlots.length > 0) {
+                var legend = el('div', { class: 'slot-legend' });
+                state.members.forEach(function (m, mi) {
+                    var count = md.bazarSlots.filter(function (s) { return s === m; }).length;
+                    var dot = el('div', { class: 'slot-legend-item' });
+                    dot.appendChild(el('span', { class: 'slot-dot', style: 'background:' + MEMBER_COLORS[mi % MEMBER_COLORS.length] }));
+                    dot.appendChild(el('span', {}, m + ' (' + count + 'd)'));
+                    legend.appendChild(dot);
+                });
+                slotWrap.appendChild(legend);
+
+                var calBar = el('div', { class: 'slot-calendar' });
+                for (var d = 0; d < days; d++) {
+                    (function (dayIdx) {
+                        var assigned = md.bazarSlots[dayIdx] || '?';
+                        var mi = state.members.indexOf(assigned);
+                        var color = mi >= 0 ? MEMBER_COLORS[mi % MEMBER_COLORS.length] : '#555';
+                        var dayEl = el('div', {
+                            class: 'slot-day',
+                            style: 'background:' + color + '22; border-color:' + color,
+                            title: 'Day ' + (dayIdx + 1) + ': ' + assigned
+                        });
+                        dayEl.appendChild(el('span', { class: 'slot-day-num' }, String(dayIdx + 1)));
+                        dayEl.appendChild(el('span', { class: 'slot-day-name' }, assigned.substring(0, 3)));
+                        if (isAdmin()) {
+                            dayEl.style.cursor = 'pointer';
+                            dayEl.addEventListener('click', function () {
+                                var modal = el('div', { class: 'modal-overlay' });
+                                var content = el('div', { class: 'modal-content' });
+                                content.appendChild(el('h3', { style: 'margin-bottom:12px' }, 'Day ' + (dayIdx + 1) + ' \u2014 Reassign'));
+                                state.members.forEach(function (m, idx) {
+                                    var btn = el('button', {
+                                        class: 'login-btn',
+                                        style: 'margin-bottom:8px; background:' + MEMBER_COLORS[idx % MEMBER_COLORS.length],
+                                        onclick: function () {
+                                            md.bazarSlots[dayIdx] = m;
+                                            save();
+                                            modal.remove();
+                                            renderBazar();
+                                            showToast('Day ' + (dayIdx + 1) + ' reassigned to ' + m, 'success');
+                                        }
+                                    }, m);
+                                    content.appendChild(btn);
+                                });
+                                content.appendChild(el('button', { class: 'mini-btn', style: 'margin-top:12px;width:100%', onclick: function () { modal.remove(); } }, 'Cancel'));
+                                modal.appendChild(content);
+                                document.body.appendChild(modal);
+                            });
+                        }
+                        calBar.appendChild(dayEl);
+                    })(d);
+                }
+                slotWrap.appendChild(calBar);
+            } else {
+                slotWrap.appendChild(el('p', { style: 'color:var(--text-secondary);font-size:13px' }, isAdmin() ? 'Click the button above to generate bazar duty slots for this month.' : 'Admin has not generated bazar duty slots yet.'));
+            }
+            container.appendChild(slotWrap);
+
             var s1 = el('div', { id: 'bazar-main-grid' }); container.appendChild(s1);
-            renderBazarGrid('#bazar-main-grid', 'bazar', '🛒 Bazar Cost (TK)');
-            container.appendChild(el('div', { class: 'section-heading' }, '📦 Others / Miscellaneous Cost'));
+            renderBazarGrid('#bazar-main-grid', 'bazar', '\ud83d\uded2 Bazar Cost (TK)');
+            container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udce6 Others / Miscellaneous Cost'));
             var s2 = el('div', { id: 'bazar-others-grid' }); container.appendChild(s2);
-            renderBazarGrid('#bazar-others-grid', 'bazarOthers', '🧹 Bazar Others Cost (TK)');
+            renderBazarGrid('#bazar-others-grid', 'bazarOthers', '\ud83e\uddf9 Bazar Others Cost (TK)');
         }
 
         function renderBazarGrid(sel, dataKey, title) {

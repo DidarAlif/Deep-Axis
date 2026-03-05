@@ -141,6 +141,7 @@ function ensureMonthData(st, mk) {
       rentPaid: new Array(n).fill(0),
       rentExclusions: {}, // { "memberIdx_utilityKey": true }
       rentExtras: new Array(n).fill(0),
+      bazarSlots: [], // array of length = days, each entry = member name
       historyBalances: new Array(n).fill(0),
       historyStatus: new Array(n).fill(''),
     };
@@ -163,6 +164,7 @@ function ensureMonthData(st, mk) {
   if (!md.rentExclusions) md.rentExclusions = {};
   if (!md.rentExtras) md.rentExtras = new Array(n).fill(0);
   while (md.rentExtras.length < n) md.rentExtras.push(0);
+  if (!md.bazarSlots) md.bazarSlots = [];
   while (md.historyBalances.length < n) md.historyBalances.push(0);
   while (md.historyStatus.length < n) md.historyStatus.push('');
   return md;
@@ -639,21 +641,108 @@ function renderMeals() {
 function renderBazar() {
   const container = $('#tab-bazar');
   container.innerHTML = '';
+  const mk = monthKey(state.currentMonth, state.currentYear);
+  const md = ensureMonthData(state, mk);
+  const days = daysInMonth(state.currentMonth, state.currentYear);
   container.appendChild(el('div', { class: 'page-header' },
-    el('h2', {}, `Bazar Costs — ${MONTH_NAMES[state.currentMonth]} ${state.currentYear}`),
+    el('h2', {}, `Bazar Costs \u2014 ${MONTH_NAMES[state.currentMonth]} ${state.currentYear}`),
     el('p', {}, 'Track grocery spending and miscellaneous costs per member per day')
   ));
+
+  // ── Bazar Duty Slots Section ──
+  container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udcc5 Bazar Duty Slots'));
+  const slotWrap = el('div', { class: 'table-wrap', style: 'padding:18px' });
+
+  if (isAdmin()) {
+    const genBtn = el('button', {
+      class: 'login-btn', style: 'margin-bottom:16px;max-width:300px',
+      onclick: () => {
+        const n = state.members.length;
+        const base = Math.floor(days / n);
+        const remainder = days % n;
+        const slots = [];
+        let alifIdx = state.members.indexOf('ALIF');
+        if (alifIdx < 0) alifIdx = 0;
+        state.members.forEach((m, mi) => {
+          const count = base + (mi === alifIdx ? remainder : 0);
+          for (let j = 0; j < count; j++) slots.push(m);
+        });
+        md.bazarSlots = slots;
+        save();
+        renderBazar();
+        showToast(`Slots generated! ALIF gets ${base + remainder} days, others get ${base}.`, 'success');
+      }
+    }, `\u2699\ufe0f Generate Slots (${days} days \u00f7 ${state.members.length} members)`);
+    slotWrap.appendChild(genBtn);
+  }
+
+  if (md.bazarSlots && md.bazarSlots.length > 0) {
+    const legend = el('div', { class: 'slot-legend' });
+    state.members.forEach((m, mi) => {
+      const count = md.bazarSlots.filter(s => s === m).length;
+      const dot = el('div', { class: 'slot-legend-item' });
+      dot.appendChild(el('span', { class: 'slot-dot', style: `background:${MEMBER_COLORS[mi % MEMBER_COLORS.length]}` }));
+      dot.appendChild(el('span', {}, `${m} (${count}d)`));
+      legend.appendChild(dot);
+    });
+    slotWrap.appendChild(legend);
+
+    const calBar = el('div', { class: 'slot-calendar' });
+    for (let d = 0; d < days; d++) {
+      ((dayIdx) => {
+        const assigned = md.bazarSlots[dayIdx] || '?';
+        const mi = state.members.indexOf(assigned);
+        const color = mi >= 0 ? MEMBER_COLORS[mi % MEMBER_COLORS.length] : '#555';
+        const dayEl = el('div', {
+          class: 'slot-day',
+          style: `background:${color}22; border-color:${color}`,
+          title: `Day ${dayIdx + 1}: ${assigned}`
+        });
+        dayEl.appendChild(el('span', { class: 'slot-day-num' }, String(dayIdx + 1)));
+        dayEl.appendChild(el('span', { class: 'slot-day-name' }, assigned.substring(0, 3)));
+        if (isAdmin()) {
+          dayEl.style.cursor = 'pointer';
+          dayEl.addEventListener('click', () => {
+            const modal = el('div', { class: 'modal-overlay' });
+            const content = el('div', { class: 'modal-content' });
+            content.appendChild(el('h3', { style: 'margin-bottom:12px' }, `Day ${dayIdx + 1} \u2014 Reassign`));
+            state.members.forEach((m, idx) => {
+              content.appendChild(el('button', {
+                class: 'login-btn',
+                style: `margin-bottom:8px; background:${MEMBER_COLORS[idx % MEMBER_COLORS.length]}`,
+                onclick: () => {
+                  md.bazarSlots[dayIdx] = m;
+                  save();
+                  modal.remove();
+                  renderBazar();
+                  showToast(`Day ${dayIdx + 1} reassigned to ${m}`, 'success');
+                }
+              }, m));
+            });
+            content.appendChild(el('button', { class: 'mini-btn', style: 'margin-top:12px;width:100%', onclick: () => modal.remove() }, 'Cancel'));
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+          });
+        }
+        calBar.appendChild(dayEl);
+      })(d);
+    }
+    slotWrap.appendChild(calBar);
+  } else {
+    slotWrap.appendChild(el('p', { style: 'color:var(--text-secondary);font-size:13px' }, isAdmin() ? 'Click the button above to generate bazar duty slots for this month.' : 'Admin has not generated bazar duty slots yet.'));
+  }
+  container.appendChild(slotWrap);
 
   // Bazar cost grid
   const bazarSection = el('div', { id: 'bazar-main-grid' });
   container.appendChild(bazarSection);
-  renderBazarGrid('#bazar-main-grid', 'bazar', '🛒 Bazar Cost (TK)');
+  renderBazarGrid('#bazar-main-grid', 'bazar', '\ud83d\uded2 Bazar Cost (TK)');
 
-  container.appendChild(el('div', { class: 'section-heading' }, '📦 Others / Miscellaneous Cost'));
+  container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udce6 Others / Miscellaneous Cost'));
 
   const othersSection = el('div', { id: 'bazar-others-grid' });
   container.appendChild(othersSection);
-  renderBazarGrid('#bazar-others-grid', 'bazarOthers', '🧹 Bazar Others Cost (TK)');
+  renderBazarGrid('#bazar-others-grid', 'bazarOthers', '\ud83e\uddf9 Bazar Others Cost (TK)');
 }
 
 function renderBazarGrid(targetSelector, dataKey, title) {
