@@ -1277,8 +1277,9 @@
 
             // Role check
             if (type === 'user') {
-                if (state.members[mi] !== currentUser) {
-                    showToast('Verify your own records only', 'error');
+                const targetMember = state.members[mi];
+                if (targetMember === currentUser && !isAdmin()) {
+                    showToast('Peer verification only! You cannot verify your own records.', 'error');
                     return;
                 }
             } else {
