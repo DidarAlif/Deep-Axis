@@ -1,9 +1,9 @@
-# 🍽️ Mess Manager — Alif-Deep Axis
+# 🍽️ Mess Manager — Deep Axis
 
 A professional, secure, and dynamic mess management application for tracking meals, bazar costs, rent, and member balances. Built for precision and ease of use.
 
 ## 🔗 Live Deployment
-🚀 **Access the App Here**: [https://didaralif.github.io/Mess-Manager-Alif-Deep-Axis/](https://didaralif.github.io/Mess-Manager-Alif-Deep-Axis/)
+🚀 **Access the App Here**: [https://didaralif.github.io/Deep-Axis/](https://didaralif.github.io/Deep-Axis/)
 
 ---
 
