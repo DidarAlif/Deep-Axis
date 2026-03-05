@@ -1334,6 +1334,8 @@
         </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script>
         /* ========================================
            MESS MANAGER — Main Application
@@ -1488,8 +1490,66 @@
         var rentUnlocked = false; // non-admin can unlock full rent view
         var historyUnlocked = false;
 
-        function save() { localStorage.setItem('messManagerState', JSON.stringify(state)); }
-        function load() { var raw = localStorage.getItem('messManagerState'); if (raw) { try { state = JSON.parse(raw); } catch (e) { state = defaultState(); } } }
+        // ── Firebase Config ──
+        var firebaseConfig = {
+            apiKey: "AIzaSyAnM53b5Jx-YESl5GrfS-5LL8FUS6ACiOs",
+            authDomain: "deep-axis-mess.firebaseapp.com",
+            databaseURL: "https://deep-axis-mess-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "deep-axis-mess",
+            storageBucket: "deep-axis-mess.firebasestorage.app",
+            messagingSenderId: "516980608323",
+            appId: "1:516980608323:web:efdd18905a6a09a76573f6"
+        };
+        var fbApp = firebase.initializeApp(firebaseConfig);
+        var db = firebase.database();
+        var stateRef = db.ref('messState');
+        var _saveTimer = null;
+        var _skipNextRender = false;
+        var _firebaseReady = false;
+
+        function save() {
+            // Save to localStorage as backup
+            localStorage.setItem('messManagerState', JSON.stringify(state));
+            // Debounced save to Firebase
+            if (_saveTimer) clearTimeout(_saveTimer);
+            _skipNextRender = true;
+            _saveTimer = setTimeout(function () {
+                stateRef.set(state).catch(function (err) {
+                    console.error('Firebase save error:', err);
+                    showToast('Sync error — saved locally', 'error');
+                });
+            }, 300);
+        }
+
+        function load() {
+            // Initial load from localStorage (fast startup)
+            var raw = localStorage.getItem('messManagerState');
+            if (raw) { try { state = JSON.parse(raw); } catch (e) { state = defaultState(); } }
+        }
+
+        function initFirebase() {
+            stateRef.on('value', function (snapshot) {
+                var data = snapshot.val();
+                if (data) {
+                    state = data;
+                    // Ensure arrays are not Firebase objects
+                    if (!Array.isArray(state.members)) state.members = [...DEFAULT_MEMBERS];
+                    localStorage.setItem('messManagerState', JSON.stringify(state));
+                    if (_skipNextRender) {
+                        _skipNextRender = false;
+                    } else {
+                        renderAll();
+                    }
+                }
+                if (!_firebaseReady) {
+                    _firebaseReady = true;
+                    showToast('\u2601\ufe0f Real-time sync active!', 'success');
+                }
+            }, function (err) {
+                console.error('Firebase listen error:', err);
+                showToast('\u26a0\ufe0f Offline mode — changes saved locally only', 'error');
+            });
+        }
 
         // ── Auth System ──
         function getPasswords() {
@@ -2411,7 +2471,7 @@
         }
 
         // ── Init ──
-        load(); initNav(); initSelectors(); initTheme(); initLogin();
+        load(); initNav(); initSelectors(); initTheme(); initLogin(); initFirebase();
     </script>
 </body>
 

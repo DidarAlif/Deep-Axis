@@ -174,12 +174,63 @@ function daysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 
 let state = defaultState();
 
-function save() { localStorage.setItem('messManagerState', JSON.stringify(state)); }
+// ── Firebase Config ──
+const firebaseConfig = {
+  apiKey: "AIzaSyAnM53b5Jx-YESl5GrfS-5LL8FUS6ACiOs",
+  authDomain: "deep-axis-mess.firebaseapp.com",
+  databaseURL: "https://deep-axis-mess-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "deep-axis-mess",
+  storageBucket: "deep-axis-mess.firebasestorage.app",
+  messagingSenderId: "516980608323",
+  appId: "1:516980608323:web:efdd18905a6a09a76573f6"
+};
+const fbApp = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const stateRef = db.ref('messState');
+let _saveTimer = null;
+let _skipNextRender = false;
+let _firebaseReady = false;
+
+function save() {
+  localStorage.setItem('messManagerState', JSON.stringify(state));
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _skipNextRender = true;
+  _saveTimer = setTimeout(() => {
+    stateRef.set(state).catch(err => {
+      console.error('Firebase save error:', err);
+      showToast('Sync error \u2014 saved locally', 'error');
+    });
+  }, 300);
+}
+
 function load() {
   const raw = localStorage.getItem('messManagerState');
   if (raw) {
     try { state = JSON.parse(raw); } catch (e) { state = defaultState(); }
   }
+}
+
+function initFirebase() {
+  stateRef.on('value', snapshot => {
+    const data = snapshot.val();
+    if (data) {
+      state = data;
+      if (!Array.isArray(state.members)) state.members = [...DEFAULT_MEMBERS];
+      localStorage.setItem('messManagerState', JSON.stringify(state));
+      if (_skipNextRender) {
+        _skipNextRender = false;
+      } else {
+        renderAll();
+      }
+    }
+    if (!_firebaseReady) {
+      _firebaseReady = true;
+      showToast('\u2601\ufe0f Real-time sync active!', 'success');
+    }
+  }, err => {
+    console.error('Firebase listen error:', err);
+    showToast('\u26a0\ufe0f Offline mode \u2014 changes saved locally only', 'error');
+  });
 }
 
 // ── Calculations (match Excel formulas) ──
@@ -1331,4 +1382,5 @@ initNav();
 initSelectors();
 initTheme();
 initLogin();
+initFirebase();
 renderAll();
