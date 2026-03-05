@@ -429,14 +429,24 @@ function initNav() {
 
 // ── Auth System ──
 function getPasswords() {
+  if (state.passwords && Object.keys(state.passwords).length > 0) return state.passwords;
   const raw = localStorage.getItem('messPasswords');
-  if (raw) try { return JSON.parse(raw); } catch (e) { }
-  const pw = {};
-  DEFAULT_MEMBERS.forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
+  let pw = {};
+  if (raw) {
+    try { pw = JSON.parse(raw); } catch (e) { }
+  }
+  if (!pw || Object.keys(pw).length === 0) {
+    DEFAULT_MEMBERS.forEach(m => { pw[m] = (m === 'ALIF' ? 'admin' : '1234'); });
+  }
+  state.passwords = pw;
   savePasswords(pw);
-  return pw;
+  return state.passwords;
 }
-function savePasswords(pw) { localStorage.setItem('messPasswords', JSON.stringify(pw)); }
+function savePasswords(pw) {
+  state.passwords = pw;
+  save();
+  localStorage.setItem('messPasswords', JSON.stringify(pw));
+}
 function isAdmin() { return currentUser === 'ALIF'; }
 
 function initLogin() {
@@ -1114,6 +1124,7 @@ function renderRent() {
 
 // ── Render: History Tab ──
 function renderHistory() {
+  const container = $('#tab-history');
   const canSeeAll = isAdmin() || historyUnlocked;
   container.innerHTML = '';
   container.appendChild(el('div', { class: 'page-header' },
