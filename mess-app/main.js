@@ -153,11 +153,37 @@ function ensureMonthData(st, mk) {
   const md = st.months[mk];
   const n = st.members.length;
   ['meals', 'bazar', 'bazarOthers'].forEach(k => {
+    if (!Array.isArray(md[k])) md[k] = Object.values(md[k] || {});
     while (md[k].length < n) md[k].push(new Array(31).fill(0));
+    for (let i = 0; i < md[k].length; i++) {
+      if (!Array.isArray(md[k][i])) {
+        const obj = md[k][i] || {};
+        md[k][i] = new Array(31).fill(0);
+        Object.keys(obj).forEach(idx => { md[k][i][+idx] = Number(obj[idx]) || 0; });
+      } else {
+        while (md[k][i].length < 31) md[k][i].push(0);
+        for (let d = 0; d < 31; d++) {
+          if (md[k][i][d] === undefined || md[k][i][d] === null) md[k][i][d] = 0;
+        }
+      }
+    }
   });
   ['vMealsUser', 'vMealsAdmin', 'vBazarUser', 'vBazarAdmin', 'vBazarOthersUser', 'vBazarOthersAdmin'].forEach(k => {
     if (!md[k]) md[k] = Array.from({ length: n }, () => new Array(31).fill(false));
+    if (!Array.isArray(md[k])) md[k] = Object.values(md[k] || {});
     while (md[k].length < n) md[k].push(new Array(31).fill(false));
+    for (let i = 0; i < md[k].length; i++) {
+      if (!Array.isArray(md[k][i])) {
+        const obj = md[k][i] || {};
+        md[k][i] = new Array(31).fill(false);
+        Object.keys(obj).forEach(idx => { md[k][i][+idx] = !!obj[idx]; });
+      } else {
+        while (md[k][i].length < 31) md[k][i].push(false);
+        for (let d = 0; d < 31; d++) {
+          if (md[k][i][d] === undefined || md[k][i][d] === null) md[k][i][d] = false;
+        }
+      }
+    }
   });
   while (md.rent.length < n) md.rent.push(0);
   while (md.rentPaid.length < n) md.rentPaid.push(0);
@@ -241,9 +267,9 @@ function calcReport(md, members) {
   const totalOthersSpend = new Array(n); // J col
 
   for (let i = 0; i < n; i++) {
-    totalMeals[i] = md.meals[i].reduce((a, b) => a + b, 0);
-    totalBazar[i] = md.bazar[i].reduce((a, b) => a + b, 0);
-    totalOthersSpend[i] = md.bazarOthers[i].reduce((a, b) => a + b, 0);
+    totalMeals[i] = (md.meals[i] || []).reduce((a, b) => a + (Number(b) || 0), 0);
+    totalBazar[i] = (md.bazar[i] || []).reduce((a, b) => a + (Number(b) || 0), 0);
+    totalOthersSpend[i] = (md.bazarOthers[i] || []).reduce((a, b) => a + (Number(b) || 0), 0);
   }
 
   const grandTotalMeals = totalMeals.reduce((a, b) => a + b, 0); // C13
@@ -1217,14 +1243,7 @@ function renderHistory() {
   container.appendChild(notesWrap);
 }
 
-// ── Render All ──
-function renderAll() {
-  renderDashboard();
-  renderMeals();
-  renderBazar();
-  renderRent();
-  renderHistory();
-}
+
 
 // ── Admin Panel ──
 function renderAdmin() {
