@@ -744,7 +744,39 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
 
 // ── Render: Meals Tab ──
 function renderMeals() {
+  const mk = monthKey(state.currentMonth, state.currentYear);
+  const md = ensureMonthData(state, mk);
+
+  // First, render the base grid the same way it used to be rendered.
   renderDayGrid('#tab-meals', 'meals', 'Meal Tracking', 'Enter daily meal count for each member');
+
+  // Then append an Admin "Verify All" button below it, if the user is an admin.
+  if (isAdmin()) {
+    const container = $('#tab-meals');
+    const verifyBtn = el('button', {
+      class: 'login-btn',
+      style: 'margin-top: 16px; margin-bottom: 24px; max-width: 300px; background-color: var(--accent);',
+      onclick: () => {
+        const days = daysInMonth(state.currentMonth, state.currentYear);
+        const membersCount = state.members.length;
+
+        // Loop through all members and all days and verify
+        for (let mi = 0; mi < membersCount; mi++) {
+          for (let d = 0; d < days; d++) {
+            md.vMealsAdmin[mi][d] = true;
+          }
+        }
+
+        save();
+        renderAll();
+        showToast('All meals have been verified by Admin', 'success');
+      }
+    }, '✅ Admin: Verify All Meals');
+
+    // Add it within a wrapper so it aligns nicely
+    const btnWrap = el('div', { class: 'table-wrap', style: 'padding: 16px; display: flex; justify-content: flex-end;' }, verifyBtn);
+    container.appendChild(btnWrap);
+  }
 }
 
 // ── Render: Bazar Tab ──
