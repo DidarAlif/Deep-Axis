@@ -702,9 +702,12 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
         type: 'number',
         class: 'grid-input',
         value: val || '',
-        min: '0',
-        disabled: !canEditRecord(mi, d + 1) || (fullyVerified && !isAdmin())
+        min: '0'
       });
+      if (!canEditRecord(mi, d + 1) || (fullyVerified && !isAdmin())) {
+        inp.disabled = true;
+      }
+
       inp.addEventListener('change', (e) => {
         data[mi][d] = parseFloat(e.target.value) || 0;
         save();
@@ -1078,9 +1081,10 @@ function renderRent() {
       type: 'number',
       class: 'grid-input wide',
       value: r.rent || '',
-      placeholder: '0',
-      disabled: !isAdmin()
+      placeholder: '0'
     });
+    if (!isAdmin()) rentInp.disabled = true;
+
     rentInp.addEventListener('change', e => {
       md.rent[i] = parseFloat(e.target.value) || 0;
       save();
@@ -1092,9 +1096,10 @@ function renderRent() {
       type: 'number',
       class: 'grid-input wide',
       value: r.extra || '',
-      placeholder: '0',
-      disabled: !isAdmin()
+      placeholder: '0'
     });
+    if (!isAdmin()) extraInp.disabled = true;
+
     extraInp.addEventListener('change', e => {
       md.rentExtras[i] = parseFloat(e.target.value) || 0;
       save();
@@ -1109,9 +1114,10 @@ function renderRent() {
       type: 'number',
       class: 'grid-input wide',
       value: r.paid || '',
-      placeholder: '0',
-      disabled: !isAdmin()
+      placeholder: '0'
     });
+    if (!isAdmin()) paidInp.disabled = true;
+
     paidInp.addEventListener('change', e => {
       md.rentPaid[i] = parseFloat(e.target.value) || 0;
       save();
