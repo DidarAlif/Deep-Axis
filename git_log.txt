@@ -1,0 +1,5 @@
+commit 204063bd6d3a7572b33c87d7ef5cf683600afe72
+Author: DidarAlif <fbalif123@gmail.com>
+Date:   Fri Mar 6 02:44:24 2026 +0600
+
+    Fix meal rate calc: parse Firebase objects properly and prevent reduce NaN errors

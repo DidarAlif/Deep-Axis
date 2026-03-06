@@ -222,7 +222,10 @@ function save() {
   if (_saveTimer) clearTimeout(_saveTimer);
   _skipNextRender = true;
   _saveTimer = setTimeout(() => {
-    stateRef.set(state).catch(err => {
+    const payload = Object.assign({}, state);
+    delete payload.passwords;
+
+    stateRef.update(payload).catch(err => {
       console.error('Firebase save error:', err);
       showToast('Sync error \u2014 saved locally', 'error');
     });
@@ -459,6 +462,9 @@ function getPasswords() {
 }
 function savePasswords(pw) {
   persistPasswords(pw);
+  if (typeof stateRef !== 'undefined') {
+    stateRef.child('passwords').set(pw).catch(console.error);
+  }
   save();
 }
 function isAdmin() { return currentUser === 'ALIF'; }
@@ -1279,19 +1285,42 @@ function renderAdmin() {
 
   const passwords = getPasswords();
   const grid = el('div', { class: 'form-grid' });
+  const inputs = {};
+
   state.members.forEach((member) => {
     const fg = el('div', { class: 'form-group' });
     fg.appendChild(el('label', {}, member));
     const inp = el('input', { type: 'text', value: passwords[member] || '1234' });
-    inp.addEventListener('change', e => {
-      passwords[member] = e.target.value;
-      savePasswords(passwords);
-      showToast('Password updated');
-    });
+    inputs[member] = inp;
     fg.appendChild(inp);
     grid.appendChild(fg);
   });
+
   container.appendChild(grid);
+
+  const saveBtn = el('button', {
+    class: 'btn',
+    style: 'margin-top: 20px; padding: 10px 20px; background-color: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;',
+    onclick: () => {
+      let changed = false;
+      state.members.forEach(member => {
+        const newVal = inputs[member].value;
+        if (passwords[member] !== newVal) {
+          passwords[member] = newVal;
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        savePasswords(passwords);
+        showToast('Passwords saved successfully!', 'success');
+      } else {
+        showToast('No changes to save.', 'info');
+      }
+    }
+  }, '💾 Save Passwords');
+
+  container.appendChild(saveBtn);
 }
 
 // ── Management Tab ──

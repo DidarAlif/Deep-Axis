@@ -1,0 +1,6 @@
+## main...origin/main
+?? GUIDE.html
+?? GUIDE.pdf
+?? git_log.txt
+?? git_status.txt
+?? mess-app/err.txt

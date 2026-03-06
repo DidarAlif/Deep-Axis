@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mess Manager — Member Guide</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #1e293b;
+            line-height: 1.7;
+            padding: 40px 60px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        h1 span {
+            color: #38bdf8;
+        }
+
+        .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .subtitle a {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 18px;
+            color: #0f172a;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        h3 {
+            font-size: 15px;
+            color: #334155;
+            margin-top: 16px;
+            margin-bottom: 6px;
+        }
+
+        p,
+        li {
+            font-size: 13.5px;
+            color: #334155;
+        }
+
+        ul,
+        ol {
+            padding-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        li {
+            margin-bottom: 4px;
+        }
+
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #0f172a;
+        }
+
+        .tip {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #166534;
+        }
+
+        .warn {
+            background: #fefce8;
+            border-left: 4px solid #eab308;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #854d0e;
+        }
+
+        .note {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #1e40af;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+
+        th,
+        td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .step-num {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background: #38bdf8;
+            color: #fff;
+            text-align: center;
+            line-height: 28px;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        @media print {
+            body {
+                padding: 20px 30px;
+            }
+
+            h2 {
+                page-break-after: avoid;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>📖 Mess<span>Manager</span> — Member Guide</h1>
+    <p class="subtitle">Deep Axis Mess Management System · <a
+            href="https://didaralif.github.io/Deep-Axis/">didaralif.github.io/Deep-Axis</a></p>
+
+    <h2><span class="step-num">1</span> 🔐 Login</h2>
+    <ol>
+        <li>Open the link above in your browser (works on phone too!)</li>
+        <li>Select <strong>your name</strong> from the dropdown</li>
+        <li>Enter <strong>your password</strong> (ask Admin if you don't know it)</li>
+        <li>Click <strong>Sign In</strong></li>
+    </ol>
+    <div class="tip">💡 Your session stays active until you click <strong>Logout</strong> or close the browser.</div>
+
+    <h2><span class="step-num">2</span> 🍽️ Update Your Meals</h2>
+    <ol>
+        <li>Click <strong>Meals</strong> in the sidebar</li>
+        <li>Find <strong>your row</strong> (your name + photo)</li>
+        <li>For <strong>today's date column</strong>, type your meal count</li>
+        <li>The value <strong>auto-saves</strong> when you click away</li>
+    </ol>
+    <div class="warn">⚠️ <strong>Rules:</strong> You can only edit your own row. Past dates are locked. Green (verified)
+        cells can't be changed.</div>
+
+    <h2><span class="step-num">3</span> 🛒 Update Your Bazar Spending</h2>
+    <ol>
+        <li>Click <strong>Bazar</strong> in the sidebar</li>
+        <li>Scroll to the <strong>🛒 Bazar Cost (TK)</strong> table</li>
+        <li>Find <strong>your row</strong> and <strong>today's column</strong></li>
+        <li>Enter the amount you spent (in Taka)</li>
+        <li>For miscellaneous costs, use the <strong>🧹 Bazar Others</strong> table below</li>
+    </ol>
+
+    <h2><span class="step-num">4</span> 📅 Bazar Duty Slots</h2>
+    <p>At the top of the Bazar tab, you'll see a <strong>color-coded calendar</strong> showing who has bazar duty on
+        each day of the month. Check which days are yours and plan accordingly! Only Admin can modify the schedule.</p>
+
+    <h2><span class="step-num">5</span> ✅ Verify Your Entries</h2>
+    <p>Each cell has two verification badges:</p>
+    <table>
+        <tr>
+            <th>Badge</th>
+            <th>Meaning</th>
+        </tr>
+        <tr>
+            <td><strong>U</strong> (grey)</td>
+            <td>You haven't verified yet — <strong>click to verify</strong></td>
+        </tr>
+        <tr>
+            <td><strong>U</strong> (green)</td>
+            <td>You have verified ✓</td>
+        </tr>
+        <tr>
+            <td><strong>A</strong> (grey)</td>
+            <td>Admin hasn't verified yet</td>
+        </tr>
+        <tr>
+            <td><strong>A</strong> (green)</td>
+            <td>Admin has verified ✓</td>
+        </tr>
+    </table>
+    <p><strong>How:</strong> Click the <strong>U</strong> badge → it turns green. Once both U + A are green, the cell
+        locks permanently.</p>
+    <div class="note">📝 You can only verify entries for <strong>today and yesterday</strong>. You <strong>cannot verify
+            your own bazar</strong> — another member must do it.</div>
+
+    <h2><span class="step-num">6</span> 📊 Understanding the Dashboard</h2>
+    <table>
+        <tr>
+            <th>Field</th>
+            <th>What It Means</th>
+        </tr>
+        <tr>
+            <td><strong>Meal Rate</strong></td>
+            <td>Cost per meal = Total Bazar ÷ Total Meals</td>
+        </tr>
+        <tr>
+            <td><strong>Your Cost</strong></td>
+            <td>Your Meals × Meal Rate</td>
+        </tr>
+        <tr>
+            <td><strong>Deposit</strong></td>
+            <td>How much bazar you've done (money you put in)</td>
+        </tr>
+        <tr>
+            <td><strong>Balance</strong></td>
+            <td>Deposit − Cost (positive = others owe you)</td>
+        </tr>
+        <tr>
+            <td><strong>Final</strong></td>
+            <td>Your net balance after "Others" costs</td>
+        </tr>
+    </table>
+
+    <h2>☁️ Real-Time Sync</h2>
+    <p>All data syncs instantly across all devices via Firebase. When you update a meal or bazar value, everyone else
+        sees it in <strong>real-time</strong> — no refresh needed!</p>
+
+    <div class="page-break"></div>
+    <h2>❓ Quick FAQ</h2>
+    <table>
+        <tr>
+            <th>Question</th>
+            <th>Answer</th>
+        </tr>
+        <tr>
+            <td>I forgot yesterday's meal!</td>
+            <td>Past dates are locked. Ask <strong>ALIF (Admin)</strong> to update it.</td>
+        </tr>
+        <tr>
+            <td>My cell is green and locked!</td>
+            <td>It's fully verified. Contact Admin if there's an error.</td>
+        </tr>
+        <tr>
+            <td>Where do I see how much I owe?</td>
+            <td><strong>Dashboard</strong> → <strong>Final</strong> column in the statement table.</td>
+        </tr>
+        <tr>
+            <td>How do I switch themes?</td>
+            <td>Toggle <strong>Dark Mode</strong> at the bottom of the sidebar.</td>
+        </tr>
+    </table>
+
+    <div class="footer">Built with ❤️ by <strong>Deep Axis</strong> · Mess Manager v2.0</div>
+
+</body>
+
+</html>
