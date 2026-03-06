@@ -1058,7 +1058,7 @@ function renderRent() {
   table.appendChild(thead);
 
   const tbody = el('tbody');
-  let sumService = 0, sumRent = 0, sumTotal = 0, sumPaid = 0, sumYet = 0;
+  let sumService = 0, sumRent = 0, sumExtra = 0, sumTotal = 0, sumPaid = 0, sumYet = 0;
 
   rentRows.forEach((r, i) => {
     if (!canSeeAll && r.name !== currentUser) return;
@@ -1079,7 +1079,7 @@ function renderRent() {
       class: 'grid-input wide',
       value: r.rent || '',
       placeholder: '0',
-      readonly: !isAdmin()
+      disabled: !isAdmin()
     });
     rentInp.addEventListener('change', e => {
       md.rent[i] = parseFloat(e.target.value) || 0;
@@ -1087,6 +1087,20 @@ function renderRent() {
       renderRent();
     });
     tr.appendChild(el('td', {}, rentInp));
+
+    const extraInp = el('input', {
+      type: 'number',
+      class: 'grid-input wide',
+      value: r.extra || '',
+      placeholder: '0',
+      disabled: !isAdmin()
+    });
+    extraInp.addEventListener('change', e => {
+      md.rentExtras[i] = parseFloat(e.target.value) || 0;
+      save();
+      renderRent();
+    });
+    tr.appendChild(el('td', {}, extraInp));
 
     tr.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:700' }, fmtTk(r.total)));
     sumTotal += r.total;
@@ -1096,7 +1110,7 @@ function renderRent() {
       class: 'grid-input wide',
       value: r.paid || '',
       placeholder: '0',
-      readonly: !isAdmin()
+      disabled: !isAdmin()
     });
     paidInp.addEventListener('change', e => {
       md.rentPaid[i] = parseFloat(e.target.value) || 0;
@@ -1107,7 +1121,9 @@ function renderRent() {
 
     const yetTd = el('td', { class: r.yet > 0 ? 'negative' : 'positive', style: 'font-weight:700' }, fmtTk(r.yet));
     tr.appendChild(yetTd);
+
     sumRent += r.rent;
+    sumExtra += r.extra;
     sumPaid += r.paid;
     sumYet += r.yet;
 
@@ -1120,6 +1136,7 @@ function renderRent() {
   UTILITY_FIELDS.forEach(() => gt.appendChild(el('td', {}, '')));
   gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumService)));
   gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumRent)));
+  gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumExtra)));
   gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmtTk(sumTotal)));
   gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(sumPaid)));
   gt.appendChild(el('td', { class: sumYet > 0 ? 'negative' : 'positive', style: 'font-weight:800' }, fmtTk(sumYet)));
