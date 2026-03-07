@@ -750,31 +750,55 @@ function renderMeals() {
   // First, render the base grid the same way it used to be rendered.
   renderDayGrid('#tab-meals', 'meals', 'Meal Tracking', 'Enter daily meal count for each member');
 
-  // Then append an Admin "Verify All" button below it, if the user is an admin.
+  // Then append Admin "Verify All" and "Clear All" buttons below it, if the user is an admin.
   if (isAdmin()) {
     const container = $('#tab-meals');
     const verifyBtn = el('button', {
       class: 'login-btn',
-      style: 'margin-top: 16px; margin-bottom: 24px; max-width: 300px; background-color: var(--accent);',
+      style: 'margin-right: 12px; max-width: 250px; background-color: var(--accent);',
       onclick: () => {
         const days = daysInMonth(state.currentMonth, state.currentYear);
         const membersCount = state.members.length;
+        let verifiedCount = 0;
 
-        // Loop through all members and all days and verify
+        // Loop through all members and all days and verify ONLY inputted meals
         for (let mi = 0; mi < membersCount; mi++) {
           for (let d = 0; d < days; d++) {
-            md.vMealsAdmin[mi][d] = true;
+            if (md.meals[mi][d] > 0) {
+              md.vMealsAdmin[mi][d] = true;
+              verifiedCount++;
+            }
           }
         }
 
         save();
         renderAll();
-        showToast('All meals have been verified by Admin', 'success');
+        showToast(`Verified ${verifiedCount} inputted meals`, 'success');
       }
-    }, '✅ Admin: Verify All Meals');
+    }, '✅ Verify Inputted Meals');
 
-    // Add it within a wrapper so it aligns nicely
-    const btnWrap = el('div', { class: 'table-wrap', style: 'padding: 16px; display: flex; justify-content: flex-end;' }, verifyBtn);
+    const clearBtn = el('button', {
+      class: 'login-btn',
+      style: 'max-width: 200px; background-color: #f44336;', // Red color for clear
+      onclick: () => {
+        const days = daysInMonth(state.currentMonth, state.currentYear);
+        const membersCount = state.members.length;
+
+        // Loop through all members and all days and clear admin verification
+        for (let mi = 0; mi < membersCount; mi++) {
+          for (let d = 0; d < days; d++) {
+            md.vMealsAdmin[mi][d] = false;
+          }
+        }
+
+        save();
+        renderAll();
+        showToast('Cleared all meal verifications', 'info');
+      }
+    }, '❌ Clear Verifications');
+
+    // Add them within a wrapper so they align nicely side-by-side
+    const btnWrap = el('div', { class: 'table-wrap', style: 'padding: 16px; margin-top: 16px; margin-bottom: 24px; display: flex; justify-content: flex-end; align-items: center;' }, verifyBtn, clearBtn);
     container.appendChild(btnWrap);
   }
 }
