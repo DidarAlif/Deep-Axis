@@ -49,7 +49,8 @@ function isDatePassed(day, month, year) {
   if (year > bd.year) return false;
   if (month < bd.month) return true;
   if (month > bd.month) return false;
-  return day < bd.day;
+  // If it's the current month and year, allow editing/verifying till the end of the month
+  return false;
 }
 
 function canEditRecord(memberIdx, day) {
@@ -60,12 +61,8 @@ function canEditRecord(memberIdx, day) {
 }
 
 function canVerifyRecord(day, month, year) {
-  const bd = getBDDate();
-  const now = new Date(bd.year, bd.month, bd.day);
-  const entryDate = new Date(year, month, day);
-  const diffTime = now - entryDate;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays === 0 || diffDays === 1;
+  // Can verify as long as the month hasn't passed
+  return !isDatePassed(day, month, year);
 }
 
 function toggleVerify(mi, d, type, dataKey) {
@@ -137,6 +134,8 @@ function ensureMonthData(st, mk) {
       vBazarOthersAdmin: Array.from({ length: n }, () => new Array(31).fill(false)),
       utilities: {},
       utilityDivisors: {},
+      utilityStatus: {},
+      utilityPaidBy: {},
       rent: st.members.map(m => DEFAULT_RENT[m] || 0),
       rentPaid: new Array(n).fill(0),
       rentExclusions: {}, // { "memberIdx_utilityKey": true }
@@ -148,6 +147,8 @@ function ensureMonthData(st, mk) {
     UTILITY_FIELDS.forEach(f => {
       st.months[mk].utilities[f.key] = DEFAULT_UTILITIES[f.key] || 0;
       st.months[mk].utilityDivisors[f.key] = f.divideBy;
+      st.months[mk].utilityStatus[f.key] = 'unpaid';
+      st.months[mk].utilityPaidBy[f.key] = '';
     });
   }
   const md = st.months[mk];
@@ -188,6 +189,8 @@ function ensureMonthData(st, mk) {
   while (md.rent.length < n) md.rent.push(0);
   while (md.rentPaid.length < n) md.rentPaid.push(0);
   if (!md.rentExclusions) md.rentExclusions = {};
+  if (!md.utilityStatus) md.utilityStatus = {};
+  if (!md.utilityPaidBy) md.utilityPaidBy = {};
   if (!md.rentExtras) md.rentExtras = new Array(n).fill(0);
   while (md.rentExtras.length < n) md.rentExtras.push(0);
   if (!md.bazarSlots) md.bazarSlots = [];
@@ -672,28 +675,26 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
   // Header
   const thead = el('thead');
   const headRow = el('tr');
-  headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Member'));
-  for (let d = 1; d <= days; d++) headRow.appendChild(el('th', {}, String(d)));
-  headRow.appendChild(el('th', {}, 'Total'));
+  headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Day'));
+  state.members.forEach(member => headRow.appendChild(el('th', { style: 'text-align:center' }, member)));
+  headRow.appendChild(el('th', { style: 'text-align:center' }, 'Total'));
   thead.appendChild(headRow);
   table.appendChild(thead);
 
   // Body
   const tbody = el('tbody');
-  const colTotals = new Array(days).fill(0);
+  const memberTotals = new Array(state.members.length).fill(0);
   let grandTotal = 0;
 
-  state.members.forEach((member, mi) => {
+  for (let d = 0; d < days; d++) {
     const tr = el('tr');
-    const nameCell = el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-card)' });
-    nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member));
-    tr.appendChild(nameCell);
+    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold' }, String(d + 1)));
 
     let rowTotal = 0;
-    for (let d = 0; d < days; d++) {
+    state.members.forEach((member, mi) => {
       const val = data[mi][d] || 0;
       rowTotal += val;
-      colTotals[d] += val;
+      memberTotals[mi] += val;
 
       const vUser = md.vMealsUser[mi][d], vAdmin = md.vMealsAdmin[mi][d];
       const fullyVerified = vUser && vAdmin;
@@ -717,23 +718,24 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
 
       const vu = el('span', { class: `verify-badge type-u ${vUser ? 'v-on' : ''}`, onclick: () => toggleVerify(mi, d, 'user', dataKey) }, 'U');
       const va = el('span', { class: `verify-badge type-a ${vAdmin ? 'v-on' : ''}`, onclick: () => toggleVerify(mi, d, 'admin', dataKey) }, 'A');
-      const vRow = el('div', { class: 'verification-row' }, vu, va);
+      const vRow = el('div', { class: 'verification-row', style: 'justify-content:center' }, vu, va);
 
-      const td = el('td', { class: fullyVerified ? 'cell-fully-verified' : '' }, inp, vRow);
+      const td = el('td', { class: fullyVerified ? 'cell-fully-verified' : '', style: 'text-align:center' }, inp, vRow);
       tr.appendChild(td);
-    }
+    });
+
     grandTotal += rowTotal;
-    tr.appendChild(el('td', { class: 'calc-cell' }, fmt(rowTotal)));
+    tr.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmt(rowTotal)));
     tbody.appendChild(tr);
-  });
+  }
 
   // Grand total row
   const gt = el('tr', { class: 'grand-total-row' });
-  gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Grand Total'));
-  for (let d = 0; d < days; d++) {
-    gt.appendChild(el('td', { class: 'calc-cell' }, fmt(colTotals[d])));
-  }
-  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmt(grandTotal)));
+  gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Total'));
+  state.members.forEach((member, mi) => {
+    gt.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmt(memberTotals[mi])));
+  });
+  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmt(grandTotal)));
   tbody.appendChild(gt);
 
   table.appendChild(tbody);
@@ -927,27 +929,25 @@ function renderBazarGrid(targetSelector, dataKey, title) {
 
   const thead = el('thead');
   const headRow = el('tr');
-  headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Member'));
-  for (let d = 1; d <= days; d++) headRow.appendChild(el('th', {}, String(d)));
-  headRow.appendChild(el('th', {}, 'Total'));
+  headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Day'));
+  state.members.forEach(member => headRow.appendChild(el('th', { style: 'text-align:center' }, member)));
+  headRow.appendChild(el('th', { style: 'text-align:center' }, 'Total'));
   thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = el('tbody');
-  const colTotals = new Array(days).fill(0);
+  const memberTotals = new Array(state.members.length).fill(0);
   let grandTotal = 0;
 
-  state.members.forEach((member, mi) => {
+  for (let d = 0; d < days; d++) {
     const tr = el('tr');
-    const nameCell = el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-card)' });
-    nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member));
-    tr.appendChild(nameCell);
+    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold' }, String(d + 1)));
 
     let rowTotal = 0;
-    for (let d = 0; d < days; d++) {
+    state.members.forEach((member, mi) => {
       const val = data[mi][d] || 0;
       rowTotal += val;
-      colTotals[d] += val;
+      memberTotals[mi] += val;
 
       const vUKey = dataKey === 'bazar' ? 'vBazarUser' : 'vBazarOthersUser';
       const vAKey = dataKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin';
@@ -956,7 +956,7 @@ function renderBazarGrid(targetSelector, dataKey, title) {
 
       const inp = el('input', {
         type: 'number',
-        class: 'grid-input',
+        class: 'grid-input wide',
         value: val || '',
         min: '0',
         disabled: !canEditRecord(mi, d + 1) || (fullyVerified && !isAdmin())
@@ -970,22 +970,23 @@ function renderBazarGrid(targetSelector, dataKey, title) {
 
       const vu = el('span', { class: `verify-badge type-u ${vUser ? 'v-on' : ''}`, onclick: () => toggleVerify(mi, d, 'user', dataKey) }, 'U');
       const va = el('span', { class: `verify-badge type-a ${vAdmin ? 'v-on' : ''}`, onclick: () => toggleVerify(mi, d, 'admin', dataKey) }, 'A');
-      const vRow = el('div', { class: 'verification-row' }, vu, va);
+      const vRow = el('div', { class: 'verification-row', style: 'justify-content:center' }, vu, va);
 
-      const td = el('td', { class: fullyVerified ? 'cell-fully-verified' : '' }, inp, vRow);
+      const td = el('td', { class: fullyVerified ? 'cell-fully-verified' : '', style: 'text-align:center' }, inp, vRow);
       tr.appendChild(td);
-    }
+    });
+
     grandTotal += rowTotal;
-    tr.appendChild(el('td', { class: 'calc-cell' }, fmtTk(rowTotal)));
+    tr.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmtTk(rowTotal)));
     tbody.appendChild(tr);
-  });
+  }
 
   const gt = el('tr', { class: 'grand-total-row' });
-  gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Grand Total'));
-  for (let d = 0; d < days; d++) {
-    gt.appendChild(el('td', { class: 'calc-cell' }, fmtTk(colTotals[d])));
-  }
-  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800' }, fmtTk(grandTotal)));
+  gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Total'));
+  state.members.forEach((member, mi) => {
+    gt.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmtTk(memberTotals[mi])));
+  });
+  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmtTk(grandTotal)));
   tbody.appendChild(gt);
 
   table.appendChild(tbody);
@@ -1038,6 +1039,38 @@ function renderRent() {
       renderRent();
     });
     fg.appendChild(inp);
+
+    // Status and Paid By
+    const stRow = el('div', { class: 'form-row', style: 'margin-top:8px; display:flex; gap:6px;' });
+    const isPaid = md.utilityStatus[f.key] === 'paid';
+    const stBtn = el('button', {
+      class: 'divide-select',
+      style: `flex:1; background:${isPaid ? 'var(--green)' : 'var(--red)'}; color:#fff; font-weight:bold; border:none; padding:4px`,
+      onclick: () => {
+        if (!isAdmin()) { showToast('Admin only', 'error'); return; }
+        md.utilityStatus[f.key] = isPaid ? 'unpaid' : 'paid';
+        save();
+        renderRent();
+      }
+    }, isPaid ? 'PAID' : 'UNPAID');
+    stRow.appendChild(stBtn);
+    fg.appendChild(stRow);
+
+    const pbRow = el('div', { class: 'form-row', style: 'margin-top:8px' });
+    pbRow.appendChild(el('label', {}, 'Paid By:'));
+    const pbInp = el('input', {
+      type: 'text',
+      value: md.utilityPaidBy[f.key] || '',
+      placeholder: 'Name...',
+      disabled: !isAdmin(),
+      style: 'flex:1; padding:4px 6px; font-size:11px'
+    });
+    pbInp.addEventListener('change', e => {
+      md.utilityPaidBy[f.key] = e.target.value;
+      save();
+    });
+    pbRow.appendChild(pbInp);
+    fg.appendChild(pbRow);
 
     // Divisor selector
     const divRow = el('div', { class: 'form-row', style: 'margin-top:8px' });

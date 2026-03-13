@@ -621,7 +621,7 @@ tbody tr.grand-total-row td {
 
 /* Editable Grid */
 .grid-input {
-  width: 48px;
+  width: 60px;
   padding: 5px 6px;
   background: var(--bg-input);
   color: var(--text-primary);
