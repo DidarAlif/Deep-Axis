@@ -356,6 +356,7 @@ function el(tag, attrs = {}, ...children) {
     if (k === 'class') e.className = v;
     else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === 'html') e.innerHTML = v;
+    else if (typeof v === 'boolean') e[k] = v;
     else e.setAttribute(k, v);
   }
   children.forEach(c => {
