@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-B8i1zQZ4.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-iuzTGnfS.css">
+  <script type="module" crossorigin src="/assets/index-Bv3TRD_o.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BJK7x0g5.css">
 </head>
 
 <body>
@@ -64,6 +64,13 @@
           </svg>
           History
         </button>
+        <button class="nav-btn" data-tab="chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          </svg>
+          Chat
+        </button>
         <button class="nav-btn" data-tab="admin" id="adminNavBtn" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3" />
@@ -78,6 +85,22 @@
               d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
           </svg>
           Management
+        </button>
+        <div class="sidebar-divider" style="height:1px; background:var(--border); margin:8px 12px;"></div>
+        <button class="nav-btn" id="globalDownloadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Excel
+        </button>
+        <button class="nav-btn" id="notifSideBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          Notifications
         </button>
       </nav>
       <div class="sidebar-footer">
@@ -103,6 +126,8 @@
     <div class="mobile-header">
       <button class="hamburger" id="hamburger">☰</button>
       <h1>Mess<span>Manager</span></h1>
+      <button id="notifMobileBtn"
+        style="margin-left:auto; background:none; border:none; font-size:20px; cursor:pointer;">🔔</button>
     </div>
 
     <!-- Main Content -->
@@ -117,6 +142,8 @@
       <section class="tab-content" id="tab-rent"></section>
       <!-- History -->
       <section class="tab-content" id="tab-history"></section>
+      <!-- Chat -->
+      <section class="tab-content" id="tab-chat"></section>
       <!-- Admin -->
       <section class="tab-content" id="tab-admin"></section>
       <!-- Management -->
@@ -135,12 +162,21 @@
       </h2>
       <p>Select your name and enter your password to continue</p>
       <select id="loginUser"></select>
-      <input type="password" id="loginPass" placeholder="Enter your password" />
+      <div class="password-wrapper">
+        <input type="password" id="loginPass" placeholder="Enter your password" />
+        <button type="button" class="eye-toggle" id="eyeToggle" title="Show password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path id="eyeOpen" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
       <button class="login-btn" id="loginBtn">Sign In</button>
       <div class="login-error" id="loginError"></div>
     </div>
   </div>
 
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </body>

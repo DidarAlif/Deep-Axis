@@ -56,7 +56,15 @@ function isDatePassed(day, month, year) {
 function canEditRecord(memberIdx, day) {
   if (isAdmin()) return true;
   if (state.members[memberIdx] !== currentUser) return false;
-  if (isDatePassed(day, state.currentMonth, state.currentYear)) return false;
+
+  const bd = getBDDate();
+  if (state.currentYear < bd.year) return false;
+  if (state.currentYear > bd.year) return true;
+  if (state.currentMonth < bd.month) return false;
+  if (state.currentMonth > bd.month) return true;
+  // Allow current day AND future days in current month
+  if (day < bd.day) return false;
+
   return true;
 }
 
@@ -123,7 +131,7 @@ function ensureMonthData(st, mk) {
   if (!st.months[mk]) {
     const n = st.members.length;
     st.months[mk] = {
-      meals: Array.from({ length: n }, () => new Array(31).fill(0)),
+      meals: Array.from({ length: n }, () => new Array(31).fill(null)),
       vMealsUser: Array.from({ length: n }, () => new Array(31).fill(false)),
       vMealsAdmin: Array.from({ length: n }, () => new Array(31).fill(false)),
       bazar: Array.from({ length: n }, () => new Array(31).fill(0)),
@@ -143,6 +151,7 @@ function ensureMonthData(st, mk) {
       bazarSlots: [], // array of length = days, each entry = member name
       historyBalances: new Array(n).fill(0),
       historyStatus: new Array(n).fill(''),
+      mealOff: new Array(n).fill(false),
     };
     UTILITY_FIELDS.forEach(f => {
       st.months[mk].utilities[f.key] = DEFAULT_UTILITIES[f.key] || 0;
@@ -155,16 +164,28 @@ function ensureMonthData(st, mk) {
   const n = st.members.length;
   ['meals', 'bazar', 'bazarOthers'].forEach(k => {
     if (!Array.isArray(md[k])) md[k] = Object.values(md[k] || {});
-    while (md[k].length < n) md[k].push(new Array(31).fill(0));
+    const fillVal = (k === 'meals') ? null : 0;
+    while (md[k].length < n) md[k].push(new Array(31).fill(fillVal));
     for (let i = 0; i < md[k].length; i++) {
       if (!Array.isArray(md[k][i])) {
         const obj = md[k][i] || {};
-        md[k][i] = new Array(31).fill(0);
-        Object.keys(obj).forEach(idx => { md[k][i][+idx] = Number(obj[idx]) || 0; });
+        md[k][i] = new Array(31).fill(fillVal);
+        Object.keys(obj).forEach(idx => {
+          const v = obj[idx];
+          if (k === 'meals') {
+            md[k][i][+idx] = (v === null || v === undefined) ? null : Number(v);
+          } else {
+            md[k][i][+idx] = Number(v) || 0;
+          }
+        });
       } else {
-        while (md[k][i].length < 31) md[k][i].push(0);
+        while (md[k][i].length < 31) md[k][i].push(fillVal);
         for (let d = 0; d < 31; d++) {
-          if (md[k][i][d] === undefined || md[k][i][d] === null) md[k][i][d] = 0;
+          if (k === 'meals') {
+            if (md[k][i][d] === undefined) md[k][i][d] = null;
+          } else {
+            if (md[k][i][d] === undefined || md[k][i][d] === null) md[k][i][d] = 0;
+          }
         }
       }
     }
@@ -196,6 +217,13 @@ function ensureMonthData(st, mk) {
   if (!md.bazarSlots) md.bazarSlots = [];
   while (md.historyBalances.length < n) md.historyBalances.push(0);
   while (md.historyStatus.length < n) md.historyStatus.push('');
+  if (!md.mealOff) md.mealOff = new Array(n).fill(false);
+  while (md.mealOff.length < n) md.mealOff.push(false);
+  // Khala calendar data
+  if (!md.khalaCook) md.khalaCook = new Array(31).fill(null);
+  while (md.khalaCook.length < 31) md.khalaCook.push(null);
+  if (!md.khalaCleaner) md.khalaCleaner = new Array(31).fill(null);
+  while (md.khalaCleaner.length < 31) md.khalaCleaner.push(null);
   return md;
 }
 
@@ -220,13 +248,24 @@ let _saveTimer = null;
 let _skipNextRender = false;
 let _firebaseReady = false;
 
+function saveUpdates(updates) {
+  const safeUpdates = JSON.parse(JSON.stringify(updates));
+  stateRef.update(safeUpdates).catch(err => {
+    console.error('Firebase update error:', err);
+    showToast('Sync error \u2014 saved locally', 'error');
+  });
+}
+
 function save() {
   localStorage.setItem('messManagerState', JSON.stringify(state));
   if (_saveTimer) clearTimeout(_saveTimer);
   _skipNextRender = true;
   _saveTimer = setTimeout(() => {
-    const payload = Object.assign({}, state);
+    let payload = Object.assign({}, state);
     delete payload.passwords;
+
+    // Strip undefined values to prevent Firebase client crashes
+    payload = JSON.parse(JSON.stringify(payload));
 
     stateRef.update(payload).catch(err => {
       console.error('Firebase save error:', err);
@@ -260,6 +299,12 @@ function initFirebase() {
     if (!_firebaseReady) {
       _firebaseReady = true;
       showToast('\u2601\ufe0f Real-time sync active!', 'success');
+
+      // Feature: Auto Month Rollover & Meal Auto-Defaults
+      if (typeof runPeriodicTasks === 'function') {
+        runPeriodicTasks();
+        setInterval(runPeriodicTasks, 60000);
+      }
     }
   }, err => {
     console.error('Firebase listen error:', err);
@@ -429,6 +474,9 @@ function initNav() {
       $$('.tab-content').forEach(t => t.classList.remove('active'));
       $(`#tab-${btn.dataset.tab}`).classList.add('active');
       $('#sidebar').classList.remove('open');
+
+      // Delay slightly or call directly to populate the active tab container
+      if (typeof renderAll === 'function') renderAll();
     });
   });
   $('#hamburger').addEventListener('click', () => {
@@ -478,6 +526,19 @@ function initLogin() {
   DEFAULT_MEMBERS.forEach(m => { sel.appendChild(el('option', { value: m }, m)); });
   $('#loginBtn').addEventListener('click', doLogin);
   $('#loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  // Eye toggle for password visibility
+  const eyeBtn = $('#eyeToggle');
+  if (eyeBtn) {
+    eyeBtn.addEventListener('click', () => {
+      const passInp = $('#loginPass');
+      const isHidden = passInp.type === 'password';
+      passInp.type = isHidden ? 'text' : 'password';
+      eyeBtn.classList.toggle('visible', isHidden);
+      eyeBtn.title = isHidden ? 'Hide password' : 'Show password';
+    });
+  }
+
   const sess = sessionStorage.getItem('messUser');
   if (sess && DEFAULT_MEMBERS.includes(sess)) {
     currentUser = sess;
@@ -502,6 +563,8 @@ function hideLogin() {
   $('#loginOverlay').style.display = 'none';
   $('#adminNavBtn').style.display = isAdmin() ? '' : 'none';
   $('#mgmtNavBtn').style.display = isAdmin() ? '' : 'none';
+  const gdlBtn = $('#globalDownloadBtn');
+  if (gdlBtn) gdlBtn.style.display = isAdmin() ? '' : 'none';
   updateUserBadge();
   renderAll();
   showToast(`Welcome, ${currentUser}!`, 'info');
@@ -560,10 +623,13 @@ function renderDashboard() {
   const grandMealCost = results.reduce((a, r) => a + r.mealCost, 0);
 
   container.innerHTML = '';
-  container.appendChild(el('div', { class: 'page-header' },
+  const header = el('div', { class: 'page-header', style: 'display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;' });
+  const titleWrap = el('div', {},
     el('h2', {}, `Final Report — ${MONTH_NAMES[state.currentMonth]} ${state.currentYear}`),
     el('p', {}, 'Monthly meal & bazar cost summary with auto-calculated balances')
-  ));
+  );
+  header.appendChild(titleWrap);
+  container.appendChild(header);
 
   // Stats row
   const statsRow = el('div', { class: 'stats-row' });
@@ -651,6 +717,58 @@ function renderDashboard() {
     <code style="color:var(--accent)">Final Balance</code> = Meal Balance + Others Spend − Others Share
   `;
   container.appendChild(legend);
+
+  // ── Khala Attendance Calendar ──
+  container.appendChild(el('div', { class: 'section-heading', style: 'margin-top:24px' }, '📅 Khala Schedule'));
+  const khalaWrap = el('div', { class: 'table-wrap', style: 'padding:18px' });
+  khalaWrap.appendChild(el('p', { style: 'font-size:12px; color:var(--text-secondary); margin-bottom:12px' },
+    'Tap to toggle if Khala is coming. 🟢 = Coming, 🔴 = Not coming, ⚪ = Not set'));
+
+  const kDays = daysInMonth(state.currentMonth, state.currentYear);
+  const khalaMk = monthKey(state.currentMonth, state.currentYear);
+  const khalaMd = ensureMonthData(state, khalaMk);
+
+  const firstDow = new Date(state.currentYear, state.currentMonth, 1).getDay();
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const calGrid = el('div', { class: 'khala-calendar' });
+  dayLabels.forEach(dl => calGrid.appendChild(el('div', { class: 'khala-header' }, dl)));
+  for (let e = 0; e < firstDow; e++) calGrid.appendChild(el('div', { class: 'khala-empty' }));
+
+  for (let d = 0; d < kDays; d++) {
+    const dayCell = el('div', { class: 'khala-day' });
+    dayCell.appendChild(el('div', { class: 'khala-day-num' }, String(d + 1)));
+
+    const cookStatus = khalaMd.khalaCook[d];
+    const cleanStatus = khalaMd.khalaCleaner[d];
+
+    const cookBtn = el('button', {
+      class: `khala-toggle ${cookStatus === true ? 'k-on' : cookStatus === false ? 'k-off' : 'k-null'}`,
+      title: 'Cook Khala',
+      onclick: () => {
+        if (khalaMd.khalaCook[d] === null || khalaMd.khalaCook[d] === undefined) khalaMd.khalaCook[d] = true;
+        else if (khalaMd.khalaCook[d] === true) khalaMd.khalaCook[d] = false;
+        else khalaMd.khalaCook[d] = null;
+        _skipNextRender = true; save(); renderAll();
+      }
+    }, `🍳${cookStatus === true ? '✓' : cookStatus === false ? '✗' : '?'}`);
+
+    const cleanBtn = el('button', {
+      class: `khala-toggle ${cleanStatus === true ? 'k-on' : cleanStatus === false ? 'k-off' : 'k-null'}`,
+      title: 'Cleaning Khala',
+      onclick: () => {
+        if (khalaMd.khalaCleaner[d] === null || khalaMd.khalaCleaner[d] === undefined) khalaMd.khalaCleaner[d] = true;
+        else if (khalaMd.khalaCleaner[d] === true) khalaMd.khalaCleaner[d] = false;
+        else khalaMd.khalaCleaner[d] = null;
+        _skipNextRender = true; save(); renderAll();
+      }
+    }, `🧹${cleanStatus === true ? '✓' : cleanStatus === false ? '✗' : '?'}`);
+
+    dayCell.appendChild(el('div', { class: 'khala-btns' }, cookBtn, cleanBtn));
+    calGrid.appendChild(dayCell);
+  }
+  khalaWrap.appendChild(calGrid);
+  container.appendChild(khalaWrap);
 }
 
 // ── Render: Daily Grid (Meals / Bazar / BazarOthers) ──
@@ -689,21 +807,27 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
 
   for (let d = 0; d < days; d++) {
     const tr = el('tr');
-    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold' }, String(d + 1)));
+    const dateObj = new Date(state.currentYear, state.currentMonth, d + 1);
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dateObj.getDay()];
+    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold; white-space:nowrap;' }, `${d + 1} ${dayName}`));
 
     let rowTotal = 0;
     state.members.forEach((member, mi) => {
-      const val = data[mi][d] || 0;
+      const rawVal = data[mi][d];
+      const val = (rawVal === null || rawVal === undefined) ? 0 : Number(rawVal);
       rowTotal += val;
       memberTotals[mi] += val;
 
       const vUser = md.vMealsUser[mi][d], vAdmin = md.vMealsAdmin[mi][d];
       const fullyVerified = vUser && vAdmin;
 
+      const isNull = (rawVal === null || rawVal === undefined);
       const inp = el('input', {
+        id: `inp-${dataKey}-${mi}-${d}`,
         type: 'number',
-        class: 'grid-input',
-        value: val || '',
+        class: `grid-input${isNull && dataKey === 'meals' ? ' meal-null' : ''}`,
+        value: isNull ? '' : rawVal,
+        placeholder: dataKey === 'meals' ? '-' : '0',
         min: '0'
       });
       if (!canEditRecord(mi, d + 1) || (fullyVerified && !isAdmin())) {
@@ -711,9 +835,43 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
       }
 
       inp.addEventListener('change', (e) => {
-        data[mi][d] = parseFloat(e.target.value) || 0;
-        save();
-        renderAll();
+        const raw = e.target.value.trim();
+        const newVal = raw === '' ? (dataKey === 'meals' ? null : '') : Number(raw);
+        if (data[mi][d] === newVal) return;
+
+        data[mi][d] = newVal;
+        if (typeof logActivity === 'function') logActivity(`${currentUser} updated ${title} for Day ${d + 1} (${member}) to ${newVal}`, member);
+
+        _skipNextRender = true;
+        const mk = monthKey(state.currentMonth, state.currentYear);
+        const updates = { [`months/${mk}/${dataKey}/${mi}/${d}`]: newVal };
+        if (isAdmin()) {
+          const vAKey = dataKey === 'meals' ? 'vMealsAdmin' : (dataKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin');
+          if (md[vAKey]) {
+            md[vAKey][mi][d] = true;
+            updates[`months/${mk}/${vAKey}/${mi}/${d}`] = true;
+          }
+        }
+        if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+        saveUpdates(updates);
+
+        let rTotal = 0;
+        for (let j = 0; j < state.members.length; j++) rTotal += Number(data[j][d]) || 0;
+        const rowEl = document.getElementById(`rt-${dataKey}-${d}`);
+        if (rowEl) rowEl.textContent = fmt(rTotal);
+
+        let cTotal = 0;
+        for (let dx = 0; dx < days; dx++) cTotal += Number(data[mi][dx]) || 0;
+        const colEl = document.getElementById(`ct-${dataKey}-${mi}`);
+        if (colEl) colEl.textContent = fmt(cTotal);
+
+        let gTotal = 0;
+        for (let j = 0; j < state.members.length; j++) {
+          for (let dx = 0; dx < days; dx++) gTotal += Number(data[j][dx]) || 0;
+        }
+        const gtEl = document.getElementById(`gt-${dataKey}`);
+        if (gtEl) gtEl.textContent = fmt(gTotal);
+
         showToast('Update saved');
       });
 
@@ -726,7 +884,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
     });
 
     grandTotal += rowTotal;
-    tr.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmt(rowTotal)));
+    tr.appendChild(el('td', { id: `rt-${dataKey}-${d}`, class: 'calc-cell', style: 'text-align:center' }, fmt(rowTotal)));
     tbody.appendChild(tr);
   }
 
@@ -734,9 +892,9 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
   const gt = el('tr', { class: 'grand-total-row' });
   gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Total'));
   state.members.forEach((member, mi) => {
-    gt.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmt(memberTotals[mi])));
+    gt.appendChild(el('td', { id: `ct-${dataKey}-${mi}`, class: 'calc-cell', style: 'text-align:center' }, fmt(memberTotals[mi])));
   });
-  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmt(grandTotal)));
+  gt.appendChild(el('td', { id: `gt-${dataKey}`, class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmt(grandTotal)));
   tbody.appendChild(gt);
 
   table.appendChild(tbody);
@@ -756,6 +914,28 @@ function renderMeals() {
   // Then append Admin "Verify All" and "Clear All" buttons below it, if the user is an admin.
   if (isAdmin()) {
     const container = $('#tab-meals');
+
+    // Meal Off checkboxes
+    const offWrap = el('div', { class: 'table-wrap', style: 'padding: 16px; margin-top: 16px; margin-bottom: 24px;' });
+    const offTitle = el('div', { style: 'font-weight:bold; margin-bottom:12px; font-size:14px; color:var(--text-primary)' }, '⚙️ Meal Off (Exempt from Auto 3)');
+    const offGrid = el('div', { style: 'display:flex; flex-wrap:wrap; gap:16px;' });
+    state.members.forEach((m, mi) => {
+      const lbl = el('label', { style: 'display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:var(--text-secondary)' });
+      const chk = el('input', { type: 'checkbox' });
+      chk.checked = md.mealOff ? md.mealOff[mi] : false;
+      chk.addEventListener('change', (e) => {
+        if (!md.mealOff) md.mealOff = new Array(state.members.length).fill(false);
+        md.mealOff[mi] = e.target.checked;
+        save();
+        showToast(`${m} ${e.target.checked ? 'exempt from' : 'subject to'} auto 3 meals defaults`, 'success');
+      });
+      lbl.appendChild(chk);
+      lbl.appendChild(document.createTextNode(m));
+      offGrid.appendChild(lbl);
+    });
+    offWrap.appendChild(offTitle);
+    offWrap.appendChild(offGrid);
+    container.appendChild(offWrap);
     const verifyBtn = el('button', {
       class: 'login-btn',
       style: 'margin-right: 12px; max-width: 250px; background-color: var(--accent);',
@@ -942,7 +1122,9 @@ function renderBazarGrid(targetSelector, dataKey, title) {
 
   for (let d = 0; d < days; d++) {
     const tr = el('tr');
-    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold' }, String(d + 1)));
+    const dateObj = new Date(state.currentYear, state.currentMonth, d + 1);
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dateObj.getDay()];
+    tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold; white-space:nowrap;' }, `${d + 1} ${dayName}`));
 
     let rowTotal = 0;
     state.members.forEach((member, mi) => {
@@ -956,16 +1138,53 @@ function renderBazarGrid(targetSelector, dataKey, title) {
       const fullyVerified = vUser && vAdmin;
 
       const inp = el('input', {
+        id: `inp-${dataKey}-${mi}-${d}`,
         type: 'number',
         class: 'grid-input wide',
-        value: val || '',
+        value: val !== '' && val !== null && val !== undefined ? val : '',
         min: '0',
         disabled: !canEditRecord(mi, d + 1) || (fullyVerified && !isAdmin())
       });
+
       inp.addEventListener('change', (e) => {
-        data[mi][d] = parseFloat(e.target.value) || 0;
-        save();
-        renderAll();
+        const raw = e.target.value.trim();
+        const newVal = raw === '' ? '' : Number(raw);
+        if (data[mi][d] === newVal) return;
+
+        data[mi][d] = newVal;
+        let tLabel = dataKey === 'bazar' ? 'Bazar' : 'Others';
+        if (typeof logActivity === 'function') logActivity(`${currentUser} updated ${tLabel} for Day ${d + 1} (${member}) to ৳${newVal}`, member);
+
+        _skipNextRender = true;
+        const mk = monthKey(state.currentMonth, state.currentYear);
+        const updates = { [`months/${mk}/${dataKey}/${mi}/${d}`]: newVal };
+        if (isAdmin()) {
+          const vAKey = dataKey === 'meals' ? 'vMealsAdmin' : (dataKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin');
+          if (md[vAKey]) {
+            md[vAKey][mi][d] = true;
+            updates[`months/${mk}/${vAKey}/${mi}/${d}`] = true;
+          }
+        }
+        if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+        saveUpdates(updates);
+
+        let rTotal = 0;
+        for (let j = 0; j < state.members.length; j++) rTotal += Number(data[j][d]) || 0;
+        const rowEl = document.getElementById(`rt-${dataKey}-${d}`);
+        if (rowEl) rowEl.textContent = fmtTk(rTotal);
+
+        let cTotal = 0;
+        for (let dx = 0; dx < days; dx++) cTotal += Number(data[mi][dx]) || 0;
+        const colEl = document.getElementById(`ct-${dataKey}-${mi}`);
+        if (colEl) colEl.textContent = fmtTk(cTotal);
+
+        let gTotal = 0;
+        for (let j = 0; j < state.members.length; j++) {
+          for (let dx = 0; dx < days; dx++) gTotal += Number(data[j][dx]) || 0;
+        }
+        const gtEl = document.getElementById(`gt-${dataKey}`);
+        if (gtEl) gtEl.textContent = fmtTk(gTotal);
+
         showToast('Update saved');
       });
 
@@ -978,16 +1197,16 @@ function renderBazarGrid(targetSelector, dataKey, title) {
     });
 
     grandTotal += rowTotal;
-    tr.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmtTk(rowTotal)));
+    tr.appendChild(el('td', { id: `rt-${dataKey}-${d}`, class: 'calc-cell', style: 'text-align:center' }, fmtTk(rowTotal)));
     tbody.appendChild(tr);
   }
 
   const gt = el('tr', { class: 'grand-total-row' });
   gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Total'));
   state.members.forEach((member, mi) => {
-    gt.appendChild(el('td', { class: 'calc-cell', style: 'text-align:center' }, fmtTk(memberTotals[mi])));
+    gt.appendChild(el('td', { id: `ct-${dataKey}-${mi}`, class: 'calc-cell', style: 'text-align:center' }, fmtTk(memberTotals[mi])));
   });
-  gt.appendChild(el('td', { class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmtTk(grandTotal)));
+  gt.appendChild(el('td', { id: `gt-${dataKey}`, class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmtTk(grandTotal)));
   tbody.appendChild(gt);
 
   table.appendChild(tbody);
@@ -1030,14 +1249,22 @@ function renderRent() {
     const fg = el('div', { class: 'form-group' });
     fg.appendChild(el('label', {}, f.label));
     const inp = el('input', {
+      id: `inp-util-${f.key}`,
       type: 'number',
-      value: md.utilities[f.key] || '',
+      value: md.utilities[f.key] !== '' && md.utilities[f.key] !== undefined ? md.utilities[f.key] : '',
       placeholder: '0'
     });
     inp.addEventListener('change', e => {
-      md.utilities[f.key] = parseFloat(e.target.value) || 0;
-      save();
-      renderRent();
+      const raw = e.target.value.trim();
+      const newVal = raw === '' ? '' : Number(raw);
+      if (md.utilities[f.key] === newVal) return;
+      md.utilities[f.key] = newVal;
+      _skipNextRender = true;
+      const mk = monthKey(state.currentMonth, state.currentYear);
+      const updates = { [`months/${mk}/utilities/${f.key}`]: newVal };
+      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+      saveUpdates(updates);
+      renderAll();
     });
     fg.appendChild(inp);
 
@@ -1050,8 +1277,9 @@ function renderRent() {
       onclick: () => {
         if (!isAdmin()) { showToast('Admin only', 'error'); return; }
         md.utilityStatus[f.key] = isPaid ? 'unpaid' : 'paid';
+        _skipNextRender = true;
         save();
-        renderRent();
+        renderAll();
       }
     }, isPaid ? 'PAID' : 'UNPAID');
     stRow.appendChild(stBtn);
@@ -1060,6 +1288,7 @@ function renderRent() {
     const pbRow = el('div', { class: 'form-row', style: 'margin-top:8px' });
     pbRow.appendChild(el('label', {}, 'Paid By:'));
     const pbInp = el('input', {
+      id: `inp-util-pb-${f.key}`,
       type: 'text',
       value: md.utilityPaidBy[f.key] || '',
       placeholder: 'Name...',
@@ -1068,7 +1297,9 @@ function renderRent() {
     });
     pbInp.addEventListener('change', e => {
       md.utilityPaidBy[f.key] = e.target.value;
+      _skipNextRender = true;
       save();
+      renderAll();
     });
     pbRow.appendChild(pbInp);
     fg.appendChild(pbRow);
@@ -1084,8 +1315,9 @@ function renderRent() {
     });
     sel.addEventListener('change', e => {
       md.utilityDivisors[f.key] = +e.target.value;
+      _skipNextRender = true;
       save();
-      renderRent();
+      renderAll();
     });
     divRow.appendChild(sel);
     fg.appendChild(divRow);
@@ -1168,32 +1400,50 @@ function renderRent() {
     sumService += r.serviceTotal;
 
     const rentInp = el('input', {
+      id: `inp-rent-rent-${i}`,
       type: 'number',
       class: 'grid-input wide',
-      value: r.rent || '',
+      value: r.rent !== '' && r.rent !== undefined ? r.rent : '',
       placeholder: '0'
     });
     if (!isAdmin()) rentInp.disabled = true;
 
     rentInp.addEventListener('change', e => {
-      md.rent[i] = parseFloat(e.target.value) || 0;
-      save();
-      renderRent();
+      const raw = e.target.value.trim();
+      const newVal = raw === '' ? '' : Number(raw);
+      if (md.rent[i] === newVal) return;
+      md.rent[i] = newVal;
+      if (typeof logActivity === 'function') logActivity(`${currentUser} updated House Rent for ${r.name} to ৳${md.rent[i]}`, r.name);
+      _skipNextRender = true;
+      const mk = monthKey(state.currentMonth, state.currentYear);
+      const updates = { [`months/${mk}/rent/${i}`]: newVal };
+      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+      saveUpdates(updates);
+      renderAll();
     });
     tr.appendChild(el('td', {}, rentInp));
 
     const extraInp = el('input', {
+      id: `inp-rent-extra-${i}`,
       type: 'number',
       class: 'grid-input wide',
-      value: r.extra || '',
+      value: r.extra !== '' && r.extra !== undefined ? r.extra : '',
       placeholder: '0'
     });
     if (!isAdmin()) extraInp.disabled = true;
 
     extraInp.addEventListener('change', e => {
-      md.rentExtras[i] = parseFloat(e.target.value) || 0;
-      save();
-      renderRent();
+      const raw = e.target.value.trim();
+      const newVal = raw === '' ? '' : Number(raw);
+      if (md.rentExtras[i] === newVal) return;
+      md.rentExtras[i] = newVal;
+      if (typeof logActivity === 'function') logActivity(`${currentUser} updated Utilities Extra for ${r.name} to ৳${md.rentExtras[i]}`, r.name);
+      _skipNextRender = true;
+      const mk = monthKey(state.currentMonth, state.currentYear);
+      const updates = { [`months/${mk}/rentExtras/${i}`]: newVal };
+      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+      saveUpdates(updates);
+      renderAll();
     });
     tr.appendChild(el('td', {}, extraInp));
 
@@ -1201,17 +1451,26 @@ function renderRent() {
     sumTotal += r.total;
 
     const paidInp = el('input', {
+      id: `inp-rent-paid-${i}`,
       type: 'number',
       class: 'grid-input wide',
-      value: r.paid || '',
+      value: r.paid !== '' && r.paid !== undefined ? r.paid : '',
       placeholder: '0'
     });
     if (!isAdmin()) paidInp.disabled = true;
 
     paidInp.addEventListener('change', e => {
-      md.rentPaid[i] = parseFloat(e.target.value) || 0;
-      save();
-      renderRent();
+      const raw = e.target.value.trim();
+      const newVal = raw === '' ? '' : Number(raw);
+      if (md.rentPaid[i] === newVal) return;
+      md.rentPaid[i] = newVal;
+      if (typeof logActivity === 'function') logActivity(`${currentUser} updated Rent Paid for ${r.name} to ৳${md.rentPaid[i]}`, r.name);
+      _skipNextRender = true;
+      const mk = monthKey(state.currentMonth, state.currentYear);
+      const updates = { [`months/${mk}/rentPaid/${i}`]: newVal };
+      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+      saveUpdates(updates);
+      renderAll();
     });
     tr.appendChild(el('td', {}, paidInp));
 
@@ -1528,13 +1787,465 @@ function removeMember(name) {
 }
 
 function renderAll() {
+  const activeTabContent = document.querySelector('.tab-content.active');
+  const scrollPositions = [];
+  let focusedId = null;
+  let cursorStart = null;
+
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+    focusedId = document.activeElement.id;
+    try { cursorStart = document.activeElement.selectionStart; } catch (e) { }
+  }
+
+  if (activeTabContent) {
+    activeTabContent.querySelectorAll('.table-scroll').forEach(el => {
+      scrollPositions.push({ top: el.scrollTop, left: el.scrollLeft });
+    });
+  }
+
   renderDashboard();
-  renderMeals();
-  renderBazar();
-  renderRent();
-  renderHistory();
-  renderAdmin();
-  renderMgmt();
+  if (activeTabContent && activeTabContent.id === 'tab-meals') renderMeals();
+  if (activeTabContent && activeTabContent.id === 'tab-bazar') renderBazar();
+  if (activeTabContent && activeTabContent.id === 'tab-rent') renderRent();
+  if (activeTabContent && activeTabContent.id === 'tab-history') renderHistory();
+  if (activeTabContent && activeTabContent.id === 'tab-chat') renderChat();
+  if (activeTabContent && activeTabContent.id === 'tab-admin') renderAdmin();
+  if (activeTabContent && activeTabContent.id === 'tab-mgmt') renderMgmt();
+
+  if (activeTabContent) {
+    const newScrollEls = activeTabContent.querySelectorAll('.table-scroll');
+    newScrollEls.forEach((el, i) => {
+      if (scrollPositions[i]) {
+        el.scrollTop = scrollPositions[i].top;
+        el.scrollLeft = scrollPositions[i].left;
+      }
+    });
+  }
+
+  if (focusedId) {
+    const elToFocus = document.getElementById(focusedId);
+    if (elToFocus) {
+      elToFocus.focus();
+      try { if (cursorStart !== null) elToFocus.setSelectionRange(cursorStart, cursorStart); } catch (e) { }
+    }
+  }
+}
+
+// ── Excel Export & Periodic Tasks ──
+function generateExcelReport() {
+  const mk = monthKey(state.currentMonth, state.currentYear);
+  const md = ensureMonthData(state, mk);
+  const days = daysInMonth(state.currentMonth, state.currentYear);
+  const { results, grandTotalMeals, grandTotalBazar, grandTotalOthers, perMealRate } = calcReport(md, state.members);
+
+  const wb = XLSX.utils.book_new();
+
+  // 1. Meals Sheet
+  const mealData = [["Day", ...state.members, "Total"]];
+  const mealTotals = new Array(state.members.length).fill(0);
+  let mealGrand = 0;
+  for (let d = 0; d < days; d++) {
+    const row = [d + 1];
+    let rTotal = 0;
+    state.members.forEach((m, mi) => {
+      const v = md.meals[mi][d] || 0;
+      row.push(v);
+      rTotal += v;
+      mealTotals[mi] += v;
+    });
+    mealGrand += rTotal;
+    row.push(rTotal);
+    mealData.push(row);
+  }
+  mealData.push(["Total", ...mealTotals, mealGrand]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mealData), "Meals");
+
+  // 2. Bazar Sheet
+  const bazarData = [["Day", ...state.members, "Total Bazar", "Day", ...state.members, "Total Others"]];
+  const bazarTotals = new Array(state.members.length).fill(0);
+  const othersTotals = new Array(state.members.length).fill(0);
+  let bGrand = 0, oGrand = 0;
+  for (let d = 0; d < days; d++) {
+    const row = [d + 1];
+    let brTotal = 0;
+    state.members.forEach((m, mi) => {
+      const v = md.bazar[mi][d] || 0;
+      row.push(v);
+      brTotal += v;
+      bazarTotals[mi] += v;
+    });
+    bGrand += brTotal;
+    row.push(brTotal);
+
+    row.push(d + 1);
+    let orTotal = 0;
+    state.members.forEach((m, mi) => {
+      const v = md.bazarOthers[mi][d] || 0;
+      row.push(v);
+      orTotal += v;
+      othersTotals[mi] += v;
+    });
+    oGrand += orTotal;
+    row.push(orTotal);
+    bazarData.push(row);
+  }
+  bazarData.push(["Total", ...bazarTotals, bGrand, "Total", ...othersTotals, oGrand]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bazarData), "Bazar");
+
+  // 3. Summary Sheet
+  const sumData = [
+    ["Member", "Total Meals", "Per Meal Rate", "Meal Cost", "Bazar Spent", "Meal Balance", "Others Spend", "Others Share", "Final Balance", "Status"]
+  ];
+  let sMealCost = 0, sBazar = 0, sMealBal = 0, sOthers = 0, sOShare = 0, sFinal = 0;
+  results.forEach(r => {
+    sumData.push([
+      r.name, r.totalMeals, Number(r.perMealRate.toFixed(2)), Number(r.mealCost.toFixed(2)), r.totalBazar, Number(r.givenTake.toFixed(2)), r.othersSpend, Number(r.othersShare.toFixed(2)), Number(r.finalBalance.toFixed(2)), r.finalBalance >= 0 ? "Gets Back" : "Owes"
+    ]);
+    sMealCost += r.mealCost; sBazar += r.totalBazar; sMealBal += r.givenTake; sOthers += r.othersSpend; sOShare += r.othersShare; sFinal += r.finalBalance;
+  });
+  sumData.push(["Grand Total", grandTotalMeals, "-", Number(sMealCost.toFixed(2)), sBazar, Number(sMealBal.toFixed(2)), sOthers, Number(sOShare.toFixed(2)), Number(sFinal.toFixed(2))]);
+
+  sumData.push([]);
+  sumData.push(["House Rent & Utilities Split"]);
+  sumData.push(["Member", ...UTILITY_FIELDS.map(f => f.label), "Service Total", "Rent", "Extras", "Grand Total", "Paid", "Yet to Pay"]);
+  const rentRows = calcRent(md, state.members);
+  let ss = 0, sr = 0, se = 0, sgt = 0, sp = 0, sy = 0;
+  rentRows.forEach(r => {
+    if (!isAdmin() && !rentUnlocked && r.name !== currentUser) return;
+    const row = [r.name];
+    UTILITY_FIELDS.forEach(f => row.push(Number(r.shares[f.key].toFixed(2))));
+    row.push(Number(r.serviceTotal.toFixed(2)), r.rent, r.extra, Number(r.total.toFixed(2)), r.paid, Number(r.yet.toFixed(2)));
+    sumData.push(row);
+    ss += r.serviceTotal; sr += r.rent; se += r.extra; sgt += r.total; sp += r.paid; sy += r.yet;
+  });
+  if (isAdmin() || rentUnlocked) {
+    const grow = ["Grand Total"];
+    UTILITY_FIELDS.forEach(() => grow.push("-"));
+    grow.push(Number(ss.toFixed(2)), sr, se, Number(sgt.toFixed(2)), sp, Number(sy.toFixed(2)));
+    sumData.push(grow);
+  }
+
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sumData), "Summary");
+  XLSX.writeFile(wb, `Mess_Report_${MONTH_NAMES[state.currentMonth]}_${state.currentYear}.xlsx`);
+}
+
+function runPeriodicTasks() {
+  const bd = getBDDate();
+  let changed = false;
+
+  // 1. Auto Month Rollover (execute only once when the real-world month actually changes)
+  if (state.lastRolledMonth !== bd.month || state.lastRolledYear !== bd.year) {
+    state.lastRolledMonth = bd.month;
+    state.lastRolledYear = bd.year;
+    // Auto-advance the UI to the strictly new month
+    state.currentMonth = bd.month;
+    state.currentYear = bd.year;
+    const mk = monthKey(state.currentMonth, state.currentYear);
+    ensureMonthData(state, mk);
+    changed = true;
+
+    const ms = $('#monthSelect');
+    const ys = $('#yearSelect');
+    if (ms) ms.value = state.currentMonth;
+    if (ys) ys.value = state.currentYear;
+    showToast('Welcome to a new month!', 'info');
+  }
+
+  // 2. Meal Auto-Default
+  const mk = monthKey(state.currentMonth, state.currentYear);
+  const md = ensureMonthData(state, mk);
+
+  if (state.currentYear === bd.year && state.currentMonth === bd.month) {
+    const alifIdx = state.members.indexOf('ALIF');
+    for (let mi = 0; mi < state.members.length; mi++) {
+      if (mi === alifIdx) continue;
+      if (md.mealOff && md.mealOff[mi]) continue;
+
+      for (let d = 0; d < bd.day - 1; d++) {
+        // Only auto-fill null (un-entered) meals to 3.
+        // Explicit 0 means "no meal" and is preserved.
+        if (md.meals[mi][d] === null || md.meals[mi][d] === undefined) {
+          md.meals[mi][d] = 3;
+          changed = true;
+        }
+      }
+    }
+  }
+
+  if (changed) {
+    save();
+    renderAll();
+  }
+}
+
+// ── Activity Log & Notifications ──
+function logActivity(msg, memberKey) {
+  if (!state.logs) state.logs = [];
+  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka", month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  state.logs.unshift({ time: now, msg, member: memberKey });
+  if (state.logs.length > 200) state.logs.pop();
+}
+
+function showNotifications() {
+  const modal = el('div', { class: 'modal-overlay', style: 'z-index:9999;' });
+  const content = el('div', { class: 'modal-content', style: 'max-width:400px; max-height:80vh; overflow-y:auto; padding:20px;' });
+
+  content.appendChild(el('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;' },
+    el('h3', { style: 'margin:0;' }, '🔔 Activity Log'),
+    el('button', { class: 'logout-btn', style: 'padding:4px 8px; width:auto; margin:0;', onclick: () => modal.remove() }, 'Close')
+  ));
+
+  let activeFilter = 'All';
+  const filterWrap = el('div', { style: 'margin-bottom:12px; display:none;' });
+  const filterSelect = el('select', { style: 'width:100%; padding:8px; border-radius:6px; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border); outline:none;' });
+
+  if (isAdmin()) {
+    filterWrap.style.display = 'block';
+    filterSelect.appendChild(el('option', { value: 'All' }, 'All Members'));
+    state.members.forEach(m => filterSelect.appendChild(el('option', { value: m }, m)));
+    filterWrap.appendChild(filterSelect);
+    content.appendChild(filterWrap);
+  }
+
+  const list = el('div', { style: 'display:flex; flex-direction:column; gap:8px;' });
+  content.appendChild(list);
+
+  function renderList() {
+    list.innerHTML = '';
+    const logs = state.logs || [];
+    let filtered = logs;
+
+    if (isAdmin()) {
+      if (activeFilter !== 'All') {
+        filtered = logs.filter(l => l.member === activeFilter || l.msg.includes(activeFilter));
+      }
+    } else {
+      filtered = logs.filter(l => l.member === currentUser || l.msg.includes(currentUser));
+    }
+
+    if (filtered.length === 0) {
+      list.appendChild(el('div', { style: 'color:var(--text-muted); text-align:center; padding:20px;' }, 'No recent activity.'));
+    } else {
+      filtered.forEach(l => {
+        const item = el('div', { style: 'background:var(--bg-input); padding:10px; border-radius:6px; border-left:3px solid var(--accent);' },
+          el('div', { style: 'font-size:11px; color:var(--text-muted); margin-bottom:4px;' }, l.time),
+          el('div', { style: 'font-size:13px; color:var(--text-primary); line-height:1.4;' }, l.msg)
+        );
+        list.appendChild(item);
+      });
+    }
+  }
+
+  filterSelect.addEventListener('change', (e) => {
+    activeFilter = e.target.value;
+    renderList();
+  });
+
+  renderList();
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+}
+
+// ── Chat Module 2.0 ──
+let _chatReplyTo = null;
+let _chatSearch = '';
+
+function renderChat() {
+  const container = $('#tab-chat');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!state.chat) state.chat = [];
+  if (!state.chatPinned) state.chatPinned = [];
+
+  container.appendChild(el('div', { class: 'page-header' },
+    el('h2', {}, '💬 Group Chat & Suggestions'),
+    el('p', {}, 'Share opinions, ideas, and stay coordinated')
+  ));
+
+  const chatContainer = el('div', { class: 'chat-container' });
+
+  // Search bar
+  const searchBar = el('div', { class: 'chat-search-bar' });
+  const searchInp = el('input', { type: 'text', placeholder: '🔍 Search messages...', value: _chatSearch });
+  searchInp.addEventListener('input', (e) => { _chatSearch = e.target.value; renderMessages(); });
+  searchBar.appendChild(searchInp);
+  chatContainer.appendChild(searchBar);
+
+  // Pinned messages area
+  const pinnedArea = el('div', { class: 'chat-pinned-area' });
+  function renderPinned() {
+    pinnedArea.innerHTML = '';
+    const pinned = (state.chatPinned || []).map(id => state.chat.find(m => m.id === id)).filter(Boolean);
+    if (pinned.length > 0) {
+      pinnedArea.appendChild(el('div', { class: 'chat-pinned-label' }, '📌 Pinned'));
+      pinned.forEach(msg => {
+        pinnedArea.appendChild(el('div', { class: 'chat-pinned-msg' },
+          el('span', { style: 'font-weight:600; color:var(--accent)' }, msg.sender + ': '),
+          el('span', {}, msg.text.substring(0, 80) + (msg.text.length > 80 ? '...' : ''))
+        ));
+      });
+    }
+  }
+  renderPinned();
+  chatContainer.appendChild(pinnedArea);
+
+  const messagesWrap = el('div', { class: 'chat-messages' });
+
+  function renderMessages() {
+    messagesWrap.innerHTML = '';
+    let messages = state.chat || [];
+    if (_chatSearch.trim()) {
+      const q = _chatSearch.toLowerCase();
+      messages = messages.filter(m => m.text.toLowerCase().includes(q) || m.sender.toLowerCase().includes(q));
+    }
+    if (messages.length === 0) {
+      messagesWrap.appendChild(el('div', { style: 'color:var(--text-muted); text-align:center; padding:40px;' },
+        _chatSearch ? 'No messages found.' : 'No messages yet. Start the conversation!'));
+      return;
+    }
+    messages.forEach(msg => {
+      const isSelf = msg.sender === currentUser;
+      const cw = el('div', { class: `chat-msg ${isSelf ? 'self' : 'other'}` });
+
+      if (msg.replyTo) {
+        const orig = state.chat.find(m => m.id === msg.replyTo);
+        if (orig) {
+          cw.appendChild(el('div', { class: 'chat-reply-preview' },
+            el('span', { style: 'font-weight:600; color:var(--accent)' }, orig.sender + ': '),
+            el('span', {}, orig.text.substring(0, 60) + (orig.text.length > 60 ? '...' : ''))
+          ));
+        }
+      }
+
+      const bubble = el('div', { class: 'chat-bubble' });
+      if (msg.category && msg.category !== 'General') {
+        bubble.appendChild(el('span', { class: 'chat-category' }, msg.category));
+        bubble.appendChild(document.createElement('br'));
+      }
+      bubble.appendChild(document.createTextNode(msg.text));
+      cw.appendChild(bubble);
+
+      // Reactions
+      const reactions = msg.reactions || {};
+      const reactionKeys = Object.keys(reactions);
+      if (reactionKeys.length > 0) {
+        const rBar = el('div', { class: 'chat-reactions-bar' });
+        reactionKeys.forEach(emoji => {
+          const users = reactions[emoji] || [];
+          if (users.length > 0) {
+            rBar.appendChild(el('span', { class: 'chat-reaction-badge', title: users.join(', ') }, `${emoji} ${users.length}`));
+          }
+        });
+        cw.appendChild(rBar);
+      }
+
+      // Actions
+      const actions = el('div', { class: 'chat-actions' });
+      actions.appendChild(el('button', { class: 'chat-action-btn', title: 'Reply', onclick: () => {
+        _chatReplyTo = msg; updateReplyPreview();
+      } }, '↩'));
+
+      ['👍','❤️','😂','😮','👎'].forEach(emoji => {
+        actions.appendChild(el('button', { class: 'chat-action-btn', onclick: () => {
+          if (!msg.reactions) msg.reactions = {};
+          if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+          const idx = msg.reactions[emoji].indexOf(currentUser);
+          if (idx >= 0) msg.reactions[emoji].splice(idx, 1);
+          else msg.reactions[emoji].push(currentUser);
+          if (msg.reactions[emoji].length === 0) delete msg.reactions[emoji];
+          _skipNextRender = true; save(); renderMessages();
+        } }, emoji));
+      });
+
+      if (isAdmin()) {
+        const isPinned = (state.chatPinned || []).includes(msg.id);
+        actions.appendChild(el('button', { class: `chat-action-btn ${isPinned ? 'pinned' : ''}`, title: isPinned ? 'Unpin' : 'Pin', onclick: () => {
+          if (!state.chatPinned) state.chatPinned = [];
+          const pi = state.chatPinned.indexOf(msg.id);
+          if (pi >= 0) state.chatPinned.splice(pi, 1); else state.chatPinned.push(msg.id);
+          save(); renderPinned(); renderMessages();
+        } }, '📌'));
+      }
+
+      if (isSelf || isAdmin()) {
+        actions.appendChild(el('button', { class: 'chat-action-btn del', title: 'Delete', onclick: () => {
+          if (!confirm('Delete this message?')) return;
+          state.chat = state.chat.filter(m => m.id !== msg.id);
+          if (state.chatPinned) state.chatPinned = state.chatPinned.filter(id => id !== msg.id);
+          save(); renderMessages(); renderPinned();
+        } }, '🗑'));
+      }
+
+      cw.appendChild(actions);
+      cw.appendChild(el('div', { class: 'chat-meta' }, isSelf ? msg.time : `${msg.sender} • ${msg.time}`));
+      messagesWrap.appendChild(cw);
+    });
+  }
+
+  renderMessages();
+  chatContainer.appendChild(messagesWrap);
+
+  // Reply bar
+  const replyPreview = el('div', { class: 'chat-reply-bar', style: 'display:none' });
+  function updateReplyPreview() {
+    if (_chatReplyTo) {
+      replyPreview.style.display = 'flex';
+      replyPreview.innerHTML = '';
+      replyPreview.appendChild(el('span', { style: 'flex:1; font-size:12px; color:var(--text-secondary)' },
+        `↩ Replying to ${_chatReplyTo.sender}: ${_chatReplyTo.text.substring(0, 40)}...`));
+      replyPreview.appendChild(el('button', { class: 'chat-action-btn', onclick: () => {
+        _chatReplyTo = null; replyPreview.style.display = 'none';
+      } }, '✕'));
+    } else { replyPreview.style.display = 'none'; }
+  }
+  chatContainer.appendChild(replyPreview);
+
+  const inputArea = el('div', { class: 'chat-input-area' });
+  const catSelect = el('select', { style: 'flex:0.3' });
+  ['General', 'Suggestion', 'Bug/Issue', 'Opinion', 'Reminder'].forEach(c => {
+    catSelect.appendChild(el('option', { value: c }, c));
+  });
+  const textInp = el('input', { type: 'text', placeholder: 'Type your message...', style: 'flex:1' });
+  const sendBtn = el('button', { class: 'login-btn', style: 'width:auto; margin:0;' }, 'Send');
+
+  function sendMessage() {
+    if (!textInp.value.trim()) return;
+    const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka", month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    if (!Array.isArray(state.chat)) state.chat = [];
+    const newMsg = { id: Date.now(), sender: currentUser, text: textInp.value.trim(), category: catSelect.value, time: now, reactions: {} };
+    if (_chatReplyTo) { newMsg.replyTo = _chatReplyTo.id; _chatReplyTo = null; }
+    state.chat.push(newMsg);
+    if (state.chat.length > 500) state.chat.shift();
+    textInp.value = '';
+    save(); renderMessages(); renderPinned(); updateReplyPreview();
+    setTimeout(() => { messagesWrap.scrollTop = messagesWrap.scrollHeight; }, 50);
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  textInp.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  inputArea.appendChild(catSelect);
+  inputArea.appendChild(textInp);
+  inputArea.appendChild(sendBtn);
+  chatContainer.appendChild(inputArea);
+  container.appendChild(chatContainer);
+  setTimeout(() => { messagesWrap.scrollTop = messagesWrap.scrollHeight; }, 10);
+}
+
+function initGlobals() {
+  const gdlBtn = $('#globalDownloadBtn');
+  if (gdlBtn) gdlBtn.addEventListener('click', generateExcelReport);
+
+  const nSideBtn = $('#notifSideBtn');
+  if (nSideBtn) {
+    nSideBtn.addEventListener('click', () => {
+      $('#sidebar').classList.remove('open');
+      showNotifications();
+    });
+  }
+
+  const nMobBtn = $('#notifMobileBtn');
+  if (nMobBtn) nMobBtn.addEventListener('click', showNotifications);
 }
 
 // ── Theme Toggle ──
@@ -1569,4 +2280,5 @@ initSelectors();
 initTheme();
 initLogin();
 initFirebase();
+initGlobals();
 renderAll();
