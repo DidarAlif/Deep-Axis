@@ -999,29 +999,43 @@ function renderBazar() {
   ));
 
   // ── Bazar Duty Slots Section ──
-  container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udcc5 Bazar Duty Slots'));
+  container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udcc5 Bazar Duty Calendar'));
   const slotWrap = el('div', { class: 'table-wrap', style: 'padding:18px' });
 
   if (isAdmin()) {
+    if (!md.bazarSkip) md.bazarSkip = {};
+    const availWrap = el('div', { style: 'margin-bottom:16px' });
+    availWrap.appendChild(el('div', { style: 'font-weight:600; font-size:13px; margin-bottom:8px; color:var(--text-primary)' }, '\ud83d\udc64 Member Bazar Availability'));
+    const availGrid = el('div', { style: 'display:flex; flex-wrap:wrap; gap:10px;' });
+    state.members.forEach((m) => {
+      const isSkipped = md.bazarSkip[m] || false;
+      const chip = el('button', {
+        class: `bazar-avail-chip ${isSkipped ? 'skipped' : 'active-chip'}`,
+        onclick: () => { md.bazarSkip[m] = !md.bazarSkip[m]; save(); renderBazar(); }
+      }, `${isSkipped ? '\u274c' : '\u2705'} ${m}`);
+      availGrid.appendChild(chip);
+    });
+    availWrap.appendChild(availGrid);
+    slotWrap.appendChild(availWrap);
+
+    const availableMembers = state.members.filter(m => !md.bazarSkip[m]);
     const genBtn = el('button', {
-      class: 'login-btn', style: 'margin-bottom:16px;max-width:300px',
+      class: 'btn-gradient', style: 'margin-bottom:16px;max-width:350px',
       onclick: () => {
-        const n = state.members.length;
+        if (availableMembers.length === 0) { showToast('No available members!', 'error'); return; }
+        const n = availableMembers.length;
         const base = Math.floor(days / n);
         const remainder = days % n;
         const slots = [];
-        let alifIdx = state.members.indexOf('ALIF');
-        if (alifIdx < 0) alifIdx = 0;
-        state.members.forEach((m, mi) => {
-          const count = base + (mi === alifIdx ? remainder : 0);
+        availableMembers.forEach((m, mi) => {
+          const count = base + (mi === 0 ? remainder : 0);
           for (let j = 0; j < count; j++) slots.push(m);
         });
         md.bazarSlots = slots;
-        save();
-        renderBazar();
-        showToast(`Slots generated! ALIF gets ${base + remainder} days, others get ${base}.`, 'success');
+        save(); renderBazar();
+        showToast(`Slots generated for ${n} members!`, 'success');
       }
-    }, `\u2699\ufe0f Generate Slots (${days} days \u00f7 ${state.members.length} members)`);
+    }, `\u2699\ufe0f Generate Slots (${days} days \u00f7 ${availableMembers.length} members)`);
     slotWrap.appendChild(genBtn);
   }
 
@@ -1029,43 +1043,42 @@ function renderBazar() {
     const legend = el('div', { class: 'slot-legend' });
     state.members.forEach((m, mi) => {
       const count = md.bazarSlots.filter(s => s === m).length;
-      const dot = el('div', { class: 'slot-legend-item' });
-      dot.appendChild(el('span', { class: 'slot-dot', style: `background:${COLORS[mi % COLORS.length]}` }));
-      dot.appendChild(el('span', {}, `${m} (${count}d)`));
-      legend.appendChild(dot);
+      if (count > 0) {
+        const dot = el('div', { class: 'slot-legend-item' });
+        dot.appendChild(el('span', { class: 'slot-dot', style: `background:${COLORS[mi % COLORS.length]}` }));
+        dot.appendChild(el('span', {}, `${m} (${count}d)`));
+        legend.appendChild(dot);
+      }
     });
     slotWrap.appendChild(legend);
 
-    const calBar = el('div', { class: 'slot-calendar' });
+    const firstDow = new Date(state.currentYear, state.currentMonth, 1).getDay();
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const calGrid = el('div', { class: 'bazar-calendar' });
+    dayLabels.forEach(dl => calGrid.appendChild(el('div', { class: 'bazar-cal-header' }, dl)));
+    for (let e = 0; e < firstDow; e++) calGrid.appendChild(el('div', { class: 'bazar-cal-empty' }));
+
     for (let d = 0; d < days; d++) {
       ((dayIdx) => {
         const assigned = md.bazarSlots[dayIdx] || '?';
         const mi = state.members.indexOf(assigned);
         const color = mi >= 0 ? COLORS[mi % COLORS.length] : '#555';
-        const dayEl = el('div', {
-          class: 'slot-day',
-          style: `background:${color}22; border-color:${color}`,
-          title: `Day ${dayIdx + 1}: ${assigned}`
-        });
-        dayEl.appendChild(el('span', { class: 'slot-day-num' }, String(dayIdx + 1)));
-        dayEl.appendChild(el('span', { class: 'slot-day-name' }, assigned.substring(0, 3)));
+
+        const dayCell = el('div', { class: 'bazar-cal-day', style: `border-color:${color}` });
+        dayCell.appendChild(el('div', { class: 'bazar-cal-num' }, String(dayIdx + 1)));
+        dayCell.appendChild(el('div', { class: 'bazar-cal-member', style: `color:${color}` }, assigned.substring(0, 4)));
+
         if (isAdmin()) {
-          dayEl.style.cursor = 'pointer';
-          dayEl.addEventListener('click', () => {
+          dayCell.style.cursor = 'pointer';
+          dayCell.addEventListener('click', () => {
             const modal = el('div', { class: 'modal-overlay' });
             const content = el('div', { class: 'modal-content' });
             content.appendChild(el('h3', { style: 'margin-bottom:12px' }, `Day ${dayIdx + 1} \u2014 Reassign`));
             state.members.forEach((m, idx) => {
+              if (md.bazarSkip && md.bazarSkip[m]) return;
               content.appendChild(el('button', {
-                class: 'login-btn',
-                style: `margin-bottom:8px; background:${COLORS[idx % COLORS.length]}`,
-                onclick: () => {
-                  md.bazarSlots[dayIdx] = m;
-                  save();
-                  modal.remove();
-                  renderBazar();
-                  showToast(`Day ${dayIdx + 1} reassigned to ${m}`, 'success');
-                }
+                class: 'btn-gradient', style: `margin-bottom:8px; background:${COLORS[idx % COLORS.length]}`,
+                onclick: () => { md.bazarSlots[dayIdx] = m; save(); modal.remove(); renderBazar(); showToast(`Day ${dayIdx + 1} reassigned to ${m}`, 'success'); }
               }, m));
             });
             content.appendChild(el('button', { class: 'mini-btn', style: 'margin-top:12px;width:100%', onclick: () => modal.remove() }, 'Cancel'));
@@ -1073,12 +1086,43 @@ function renderBazar() {
             document.body.appendChild(modal);
           });
         }
-        calBar.appendChild(dayEl);
+        calGrid.appendChild(dayCell);
       })(d);
     }
-    slotWrap.appendChild(calBar);
+    slotWrap.appendChild(calGrid);
+
+    // WhatsApp reminder links
+    const waWrap = el('div', { style: 'margin-top:16px; padding-top:12px; border-top:1px solid var(--border)' });
+    waWrap.appendChild(el('div', { style: 'font-weight:600; font-size:13px; margin-bottom:10px; color:var(--text-primary)' }, '\ud83d\udcf2 WhatsApp Reminders'));
+    const bd = getBDDate();
+    const todayIdx = (state.currentYear === bd.year && state.currentMonth === bd.month) ? bd.day - 1 : -1;
+    const todayMember = todayIdx >= 0 ? md.bazarSlots[todayIdx] : null;
+    const tomorrowMember = (todayIdx >= 0 && todayIdx + 1 < days) ? md.bazarSlots[todayIdx + 1] : null;
+
+    if (todayMember) {
+      const msg1 = encodeURIComponent(`\ud83d\uded2 Hey ${todayMember}! Today is your bazar duty (Day ${todayIdx + 1}). Don't forget!`);
+      waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg1}`, target: '_blank', class: 'btn-gradient wa-btn' }, `\ud83d\udce2 Today: ${todayMember}'s duty`));
+    }
+    if (tomorrowMember) {
+      const msg2 = encodeURIComponent(`\ud83d\uded2 Hey ${tomorrowMember}! Tomorrow (Day ${todayIdx + 2}) is your bazar duty. Be ready!`);
+      waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg2}`, target: '_blank', class: 'btn-gradient wa-btn' }, `\ud83d\udce2 Tomorrow: ${tomorrowMember}'s duty`));
+    }
+
+    // Meal reminder
+    if (state.currentYear === bd.year && state.currentMonth === bd.month) {
+      const currentMk = monthKey(state.currentMonth, state.currentYear);
+      const currentMd = ensureMonthData(state, currentMk);
+      const unenteredMembers = state.members.filter((m, mi) => {
+        return currentMd.meals[mi] && (currentMd.meals[mi][bd.day - 1] === null || currentMd.meals[mi][bd.day - 1] === undefined);
+      });
+      if (unenteredMembers.length > 0) {
+        const msg3 = encodeURIComponent(`\ud83c\udf7d\ufe0f Meal Reminder! ${unenteredMembers.join(', ')} \u2014 you haven't entered today's meal count. Update now!`);
+        waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg3}`, target: '_blank', class: 'btn-gradient wa-btn wa-meal' }, `\ud83c\udf7d\ufe0f Meal reminder (${unenteredMembers.length} pending)`));
+      }
+    }
+    slotWrap.appendChild(waWrap);
   } else {
-    slotWrap.appendChild(el('p', { style: 'color:var(--text-secondary);font-size:13px' }, isAdmin() ? 'Click the button above to generate bazar duty slots for this month.' : 'Admin has not generated bazar duty slots yet.'));
+    slotWrap.appendChild(el('p', { style: 'color:var(--text-secondary);font-size:13px' }, isAdmin() ? 'Click the button above to generate bazar duty slots.' : 'Admin has not generated bazar duty slots yet.'));
   }
   container.appendChild(slotWrap);
 
@@ -1088,7 +1132,6 @@ function renderBazar() {
   renderBazarGrid('#bazar-main-grid', 'bazar', '\ud83d\uded2 Bazar Cost (TK)');
 
   container.appendChild(el('div', { class: 'section-heading' }, '\ud83d\udce6 Others / Miscellaneous Cost'));
-
   const othersSection = el('div', { id: 'bazar-others-grid' });
   container.appendChild(othersSection);
   renderBazarGrid('#bazar-others-grid', 'bazarOthers', '\ud83e\uddf9 Bazar Others Cost (TK)');

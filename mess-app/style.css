@@ -122,7 +122,7 @@ body {
 .sidebar {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--bg-secondary) 90%, var(--accent) 10%) 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -130,6 +130,7 @@ body {
   gap: 8px;
   z-index: 100;
   transition: transform var(--transition);
+  backdrop-filter: blur(12px);
 }
 
 .sidebar-brand {
@@ -143,6 +144,11 @@ body {
 
 .brand-icon {
   font-size: 24px;
+  animation: brandPulse 2s ease-in-out infinite;
+}
+@keyframes brandPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1) rotate(5deg); }
 }
 
 .sidebar-brand h1 {
@@ -178,27 +184,49 @@ body {
   font-weight: 500;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--transition);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--accent-gradient);
+  transform: scaleY(0);
+  transition: transform 0.25s ease;
+  border-radius: 0 4px 4px 0;
 }
 
 .nav-btn svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
 
 .nav-btn:hover {
   background: var(--bg-card);
   color: var(--text-primary);
+  transform: translateX(4px);
 }
+.nav-btn:hover svg { transform: scale(1.15); }
 
 .nav-btn.active {
   background: var(--accent-glow);
   color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 0 20px var(--accent-glow);
 }
+.nav-btn.active::before { transform: scaleY(1); }
 
 .nav-btn.active svg {
   stroke: var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent));
 }
 
 /* Theme Toggle */
@@ -1447,4 +1475,180 @@ tbody tr.grand-total-row td {
   color: var(--text-primary);
   margin: 16px 0 8px;
   padding-left: 4px;
+}
+
+/* ── Gradient Button ── */
+.btn-gradient {
+  display: inline-block;
+  padding: 10px 20px;
+  background: var(--accent-gradient);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2);
+  text-align: center;
+}
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(56, 189, 248, 0.35);
+}
+.btn-gradient:active { transform: translateY(0); }
+
+/* ── Bazar Calendar Grid ── */
+.bazar-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+.bazar-cal-header {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+.bazar-cal-empty { }
+.bazar-cal-day {
+  background: var(--bg-input);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+  text-align: center;
+  transition: all 0.2s;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.bazar-cal-day:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.bazar-cal-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.bazar-cal-member {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Bazar Availability Chips ── */
+.bazar-avail-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+.bazar-avail-chip.active-chip {
+  border-color: var(--green);
+  background: var(--green-bg);
+  color: var(--green);
+}
+.bazar-avail-chip.skipped {
+  border-color: var(--red);
+  background: var(--red-bg);
+  color: var(--red);
+  opacity: 0.7;
+}
+.bazar-avail-chip:hover { transform: scale(1.05); }
+
+/* ── WhatsApp Buttons ── */
+.wa-btn {
+  display: inline-block;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  text-decoration: none !important;
+  color: #fff !important;
+  background: #25D366 !important;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+.wa-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.5) !important;
+}
+.wa-meal {
+  background: var(--amber) !important;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3) !important;
+}
+
+/* ── Enhanced Login Card ── */
+.login-overlay {
+  background: radial-gradient(ellipse at center, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+}
+.login-card {
+  position: relative;
+  animation: loginFloat 3s ease-in-out infinite alternate;
+}
+.login-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--accent-gradient);
+  z-index: -1;
+  opacity: 0.5;
+  animation: borderGlow 3s ease-in-out infinite alternate;
+}
+@keyframes borderGlow {
+  0% { opacity: 0.3; filter: blur(4px); }
+  100% { opacity: 0.7; filter: blur(2px); }
+}
+
+/* ── Enhanced Stat Cards ── */
+.stat-card {
+  transition: all 0.3s ease;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+/* ── Enhanced Table Rows ── */
+tbody tr {
+  transition: all 0.2s ease;
+}
+tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+/* ── Page Header Enhancement ── */
+.page-header h2 {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+/* ── Mobile Header Enhancement ── */
+.mobile-header {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--bg-secondary) 85%, var(--accent) 15%) 100%);
+}
+.mobile-header h1 span {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
