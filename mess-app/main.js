@@ -719,10 +719,21 @@ function renderDashboard() {
   container.appendChild(legend);
 
   // ── Khala Attendance Calendar ──
-  container.appendChild(el('div', { class: 'section-heading', style: 'margin-top:24px' }, '📅 Khala Schedule'));
-  const khalaWrap = el('div', { class: 'table-wrap', style: 'padding:18px' });
+  const khalaHeaderWrap = el('div', { style: 'display: flex; justify-content: space-between; align-items: center; margin-top: 24px; margin-bottom: 8px;' });
+  khalaHeaderWrap.appendChild(el('div', { class: 'section-heading', style: 'margin: 0;' }, '📅 Khala Schedule'));
+  const toggleKhalaBtn = el('button', { class: 'btn-gradient', style: 'padding: 6px 12px; font-size: 12px;' }, 'Show Calendar');
+  khalaHeaderWrap.appendChild(toggleKhalaBtn);
+  container.appendChild(khalaHeaderWrap);
+
+  const khalaWrap = el('div', { class: 'table-wrap', style: 'padding:18px; display: none;' });
   khalaWrap.appendChild(el('p', { style: 'font-size:12px; color:var(--text-secondary); margin-bottom:12px' },
     'Tap to toggle if Khala is coming. 🟢 = Coming, 🔴 = Not coming, ⚪ = Not set'));
+
+  toggleKhalaBtn.addEventListener('click', () => {
+    const isHidden = khalaWrap.style.display === 'none';
+    khalaWrap.style.display = isHidden ? 'block' : 'none';
+    toggleKhalaBtn.textContent = isHidden ? 'Hide Calendar' : 'Show Calendar';
+  });
 
   const kDays = daysInMonth(state.currentMonth, state.currentYear);
   const khalaMk = monthKey(state.currentMonth, state.currentYear);
