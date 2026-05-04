@@ -282,6 +282,40 @@ function load() {
   hydratePasswordsFromLocal();
 }
 
+function migrateMealNulls() {
+  // One-time migration: for the current real month, convert old-format 0s to null
+  // for today and future days (past days with 0 stay as 0 to preserve intentional skips
+  // but more importantly past missed days will get auto-filled to 3 by runPeriodicTasks).
+  const bd = getBDDate();
+  const mk = monthKey(bd.month, bd.year);
+  if (!state.months || !state.months[mk]) return;
+  const md = state.months[mk];
+  if (!md.meals || !Array.isArray(md.meals)) return;
+
+  let changed = false;
+  const alifIdx = Array.isArray(state.members) ? state.members.indexOf('ALIF') : -1;
+  for (let mi = 0; mi < md.meals.length; mi++) {
+    if (mi === alifIdx) continue;
+    if (!Array.isArray(md.meals[mi])) continue;
+    for (let d = bd.day - 1; d < 31; d++) {
+      // Today and future days: if value is 0 and NOT explicitly verified, treat as null
+      const isVerified = md.vMealsUser && md.vMealsUser[mi] && md.vMealsUser[mi][d];
+      const isAdminVerified = md.vMealsAdmin && md.vMealsAdmin[mi] && md.vMealsAdmin[mi][d];
+      if (md.meals[mi][d] === 0 && !isVerified && !isAdminVerified) {
+        md.meals[mi][d] = null;
+        changed = true;
+      }
+    }
+  }
+  if (changed) {
+    // Silently push the migrated data to Firebase
+    const updates = {};
+    updates[`months/${mk}/meals`] = md.meals;
+    stateRef.update(JSON.parse(JSON.stringify(updates))).catch(() => {});
+    localStorage.setItem('messManagerState', JSON.stringify(state));
+  }
+}
+
 function initFirebase() {
   stateRef.on('value', snapshot => {
     const data = snapshot.val();
@@ -289,6 +323,8 @@ function initFirebase() {
       state = data;
       if (!Array.isArray(state.members)) state.members = [...DEFAULT_MEMBERS];
       hydratePasswordsFromLocal();
+      // Migrate old 0s -> null for current month's today+future days
+      migrateMealNulls();
       localStorage.setItem('messManagerState', JSON.stringify(state));
       if (_skipNextRender) {
         _skipNextRender = false;
@@ -1105,30 +1141,38 @@ function renderBazar() {
     // WhatsApp reminder links
     const waWrap = el('div', { style: 'margin-top:16px; padding-top:12px; border-top:1px solid var(--border)' });
     waWrap.appendChild(el('div', { style: 'font-weight:600; font-size:13px; margin-bottom:10px; color:var(--text-primary)' }, '\ud83d\udcf2 WhatsApp Reminders'));
+
+    // Always use the REAL today's date (not the viewed month)
     const bd = getBDDate();
-    const todayIdx = (state.currentYear === bd.year && state.currentMonth === bd.month) ? bd.day - 1 : -1;
-    const todayMember = todayIdx >= 0 ? md.bazarSlots[todayIdx] : null;
-    const tomorrowMember = (todayIdx >= 0 && todayIdx + 1 < days) ? md.bazarSlots[todayIdx + 1] : null;
+    const realMk = monthKey(bd.month, bd.year);
+    const realMd = state.months && state.months[realMk] ? ensureMonthData(state, realMk) : null;
+    const todayIdx = bd.day - 1;
+    const todayMember = (md.bazarSlots && todayIdx < md.bazarSlots.length) ? md.bazarSlots[todayIdx] : null;
+    const tomorrowMember = (md.bazarSlots && todayIdx + 1 < md.bazarSlots.length) ? md.bazarSlots[todayIdx + 1] : null;
 
     if (todayMember) {
-      const msg1 = encodeURIComponent(`\ud83d\uded2 Hey ${todayMember}! Today is your bazar duty (Day ${todayIdx + 1}). Don't forget!`);
+      const msg1 = encodeURIComponent(`\ud83d\uded2 Hey ${todayMember}! Today is your bazar duty (Day ${bd.day}). Don't forget!`);
       waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg1}`, target: '_blank', class: 'btn-gradient wa-btn' }, `\ud83d\udce2 Today: ${todayMember}'s duty`));
     }
     if (tomorrowMember) {
-      const msg2 = encodeURIComponent(`\ud83d\uded2 Hey ${tomorrowMember}! Tomorrow (Day ${todayIdx + 2}) is your bazar duty. Be ready!`);
+      const msg2 = encodeURIComponent(`\ud83d\uded2 Hey ${tomorrowMember}! Tomorrow (Day ${bd.day + 1}) is your bazar duty. Be ready!`);
       waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg2}`, target: '_blank', class: 'btn-gradient wa-btn' }, `\ud83d\udce2 Tomorrow: ${tomorrowMember}'s duty`));
     }
 
-    // Meal reminder
-    if (state.currentYear === bd.year && state.currentMonth === bd.month) {
-      const currentMk = monthKey(state.currentMonth, state.currentYear);
-      const currentMd = ensureMonthData(state, currentMk);
+    // Meal reminder: check TODAY's actual date against actual current month data
+    if (realMd) {
       const unenteredMembers = state.members.filter((m, mi) => {
-        return currentMd.meals[mi] && (currentMd.meals[mi][bd.day - 1] === null || currentMd.meals[mi][bd.day - 1] === undefined);
+        if (state.members[mi] === 'ALIF') return false; // ALIF is excluded
+        if (realMd.mealOff && realMd.mealOff[mi]) return false; // mealOff members excluded
+        const val = realMd.meals[mi] ? realMd.meals[mi][todayIdx] : null;
+        return val === null || val === undefined;
       });
       if (unenteredMembers.length > 0) {
-        const msg3 = encodeURIComponent(`\ud83c\udf7d\ufe0f Meal Reminder! ${unenteredMembers.join(', ')} \u2014 you haven't entered today's meal count. Update now!`);
-        waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg3}`, target: '_blank', class: 'btn-gradient wa-btn wa-meal' }, `\ud83c\udf7d\ufe0f Meal reminder (${unenteredMembers.length} pending)`));
+        const nameList = unenteredMembers.join(', ');
+        const msg3 = encodeURIComponent(`\ud83c\udf7d\ufe0f Meal Reminder! ${nameList} \u2014 you haven't entered today's (Day ${bd.day}) meal count. Please update before end of day!`);
+        waWrap.appendChild(el('a', { href: `https://wa.me/?text=${msg3}`, target: '_blank', class: 'btn-gradient wa-btn wa-meal' }, `\ud83c\udf7d\ufe0f ${unenteredMembers.length} member${unenteredMembers.length > 1 ? 's' : ''} haven't entered meals today`));
+      } else {
+        waWrap.appendChild(el('div', { style: 'font-size:12px; color:var(--green)' }, '\u2705 All members have entered today\'s meals!'));
       }
     }
     slotWrap.appendChild(waWrap);
