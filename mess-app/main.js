@@ -159,6 +159,7 @@ function ensureMonthData(st, mk) {
   if (!st.months[mk]) {
     const n = st.members.length;
     st.months[mk] = {
+      members: [...st.members],
       meals: Array.from({ length: n }, () => new Array(31).fill(null)),
       vMealsUser: Array.from({ length: n }, () => new Array(31).fill(false)),
       vMealsAdmin: Array.from({ length: n }, () => new Array(31).fill(false)),
@@ -189,7 +190,10 @@ function ensureMonthData(st, mk) {
     });
   }
   const md = st.months[mk];
-  const n = st.members.length;
+  if (!md.members) {
+    md.members = [...st.members];
+  }
+  const n = md.members.length;
   ['meals', 'bazar', 'bazarOthers'].forEach(k => {
     if (!Array.isArray(md[k])) md[k] = Object.values(md[k] || {});
     const fillVal = (k === 'meals') ? null : 0;
@@ -235,7 +239,7 @@ function ensureMonthData(st, mk) {
       }
     }
   });
-  while (md.rent.length < n) md.rent.push(0);
+  while (md.rent.length < n) md.rent.push(DEFAULT_RENT[md.members[md.rent.length]] || 0);
   while (md.rentPaid.length < n) md.rentPaid.push(0);
   if (!md.rentExclusions) md.rentExclusions = {};
   if (!md.utilityStatus) md.utilityStatus = {};
@@ -671,7 +675,7 @@ function renderDashboard() {
   const container = $('#tab-dashboard');
   const mk = monthKey(state.currentMonth, state.currentYear);
   const md = ensureMonthData(state, mk);
-  const { results, grandTotalMeals, grandTotalBazar, grandTotalOthers, perMealRate } = calcReport(md, state.members);
+  const { results, grandTotalMeals, grandTotalBazar, grandTotalOthers, perMealRate } = calcReport(md, md.members);
 
   const grandMealCost = results.reduce((a, r) => a + r.mealCost, 0);
 
@@ -687,10 +691,10 @@ function renderDashboard() {
   // Stats row
   const statsRow = el('div', { class: 'stats-row' });
   const stats = [
-    { label: 'Total Meals', value: grandTotalMeals, cls: 'stat-accent', sub: `${state.members.length} members` },
+    { label: 'Total Meals', value: grandTotalMeals, cls: 'stat-accent', sub: `${md.members.length} members` },
     { label: 'Total Bazar', value: fmtTk(grandTotalBazar), cls: 'stat-green', sub: 'All members combined' },
     { label: 'Per Meal Rate', value: fmtTk(perMealRate), cls: 'stat-amber', sub: 'Total Bazar ÷ Total Meals' },
-    { label: 'Others Cost', value: fmtTk(grandTotalOthers), cls: 'stat-red', sub: `÷${state.members.length} per member` },
+    { label: 'Others Cost', value: fmtTk(grandTotalOthers), cls: 'stat-red', sub: `÷${md.members.length} per member` },
   ];
   stats.forEach(s => {
     const c = el('div', { class: `stat-card ${s.cls}` },
@@ -871,7 +875,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
   const thead = el('thead');
   const headRow = el('tr');
   headRow.appendChild(el('th', { style: 'position:sticky;left:0;z-index:3;background:var(--bg-secondary)' }, 'Day'));
-  state.members.forEach(member => headRow.appendChild(el('th', { style: 'text-align:center' }, member)));
+  md.members.forEach(member => headRow.appendChild(el('th', { style: 'text-align:center' }, member)));
   headRow.appendChild(el('th', { style: 'text-align:center' }, 'Total'));
   thead.appendChild(headRow);
   table.appendChild(thead);
@@ -907,7 +911,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
          }
 
          dataArr[mi][d] = newVal;
-         const member = state.members[mi];
+         const member = md.members[mi];
          if (typeof logActivity === 'function') logActivity(`${currentUser} updated ${title} for Day ${d + 1} (${member}) to ${newVal}`, member);
          
          _skipNextRender = true;
@@ -924,7 +928,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
          
          const days = daysInMonth(state.currentMonth, state.currentYear);
          let rTotal = 0;
-         for (let j = 0; j < state.members.length; j++) rTotal += Number(dataArr[j][d]) || 0;
+         for (let j = 0; j < md.members.length; j++) rTotal += Number(dataArr[j][d]) || 0;
          const rowEl = document.getElementById(`rt-${dKey}-${d}`);
          if (rowEl) rowEl.textContent = fmt(rTotal);
 
@@ -934,7 +938,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
          if (colEl) colEl.textContent = fmt(cTotal);
 
          let gTotal = 0;
-         for (let j = 0; j < state.members.length; j++) {
+         for (let j = 0; j < md.members.length; j++) {
            for (let dx = 0; dx < days; dx++) gTotal += Number(dataArr[j][dx]) || 0;
          }
          const gtEl = document.getElementById(`gt-${dKey}`);
@@ -967,7 +971,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
     // Update row/column/grand totals inline
     const numDays = daysInMonth(state.currentMonth, state.currentYear);
     let rTotal = 0;
-    for (let j = 0; j < state.members.length; j++) rTotal += Number(dataArr[j][d]) || 0;
+    for (let j = 0; j < md.members.length; j++) rTotal += Number(dataArr[j][d]) || 0;
     const rowEl = document.getElementById(`rt-${dKey}-${d}`);
     if (rowEl) rowEl.textContent = fmt(rTotal);
     let cTotal = 0;
@@ -975,7 +979,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
     const colEl = document.getElementById(`ct-${dKey}-${mi}`);
     if (colEl) colEl.textContent = fmt(cTotal);
     let gTotal = 0;
-    for (let j = 0; j < state.members.length; j++) {
+    for (let j = 0; j < md.members.length; j++) {
       for (let dx = 0; dx < numDays; dx++) gTotal += Number(dataArr[j][dx]) || 0;
     }
     const gtEl = document.getElementById(`gt-${dKey}`);
@@ -1011,7 +1015,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
       }
   });
 
-  const memberTotals = new Array(state.members.length).fill(0);
+  const memberTotals = new Array(md.members.length).fill(0);
   let grandTotal = 0;
 
   for (let d = 0; d < days; d++) {
@@ -1021,7 +1025,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
     tr.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary);font-weight:bold; white-space:nowrap;' }, `${d + 1} ${dayName}`));
 
     let rowTotal = 0;
-    state.members.forEach((member, mi) => {
+    md.members.forEach((member, mi) => {
       const rawVal = data[mi][d];
       const val = (rawVal === null || rawVal === undefined) ? 0 : Number(rawVal);
       rowTotal += val;
@@ -1059,7 +1063,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
   // Grand total row
   const gt = el('tr', { class: 'grand-total-row' });
   gt.appendChild(el('td', { style: 'position:sticky;left:0;z-index:1;background:var(--bg-secondary)' }, 'Total'));
-  state.members.forEach((member, mi) => {
+  md.members.forEach((member, mi) => {
     gt.appendChild(el('td', { id: `ct-${dataKey}-${mi}`, class: 'calc-cell', style: 'text-align:center' }, fmt(memberTotals[mi])));
   });
   gt.appendChild(el('td', { id: `gt-${dataKey}`, class: 'calc-cell', style: 'font-weight:800;text-align:center' }, fmt(grandTotal)));
@@ -1087,12 +1091,12 @@ function renderMeals() {
     const offWrap = el('div', { class: 'table-wrap', style: 'padding: 16px; margin-top: 16px; margin-bottom: 24px;' });
     const offTitle = el('div', { style: 'font-weight:bold; margin-bottom:12px; font-size:14px; color:var(--text-primary)' }, '⚙️ Meal Off (Exempt from Auto 3)');
     const offGrid = el('div', { style: 'display:flex; flex-wrap:wrap; gap:16px;' });
-    state.members.forEach((m, mi) => {
+    md.members.forEach((m, mi) => {
       const lbl = el('label', { style: 'display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:var(--text-secondary)' });
       const chk = el('input', { type: 'checkbox' });
       chk.checked = md.mealOff ? md.mealOff[mi] : false;
       chk.addEventListener('change', (e) => {
-        if (!md.mealOff) md.mealOff = new Array(state.members.length).fill(false);
+        if (!md.mealOff) md.mealOff = new Array(md.members.length).fill(false);
         md.mealOff[mi] = e.target.checked;
         saveUpdates({ [`months/${mk}/mealOff/${mi}`]: md.mealOff[mi] });
         saveLocal();
@@ -1110,7 +1114,7 @@ function renderMeals() {
       style: 'margin-right: 12px; max-width: 250px; background-color: var(--accent);',
       onclick: () => {
         const days = daysInMonth(state.currentMonth, state.currentYear);
-        const membersCount = state.members.length;
+        const membersCount = md.members.length;
         let verifiedCount = 0;
 
         // Loop through all members and all days and verify ONLY inputted meals
@@ -1136,7 +1140,7 @@ function renderMeals() {
       style: 'max-width: 200px; background-color: #f44336;', // Red color for clear
       onclick: () => {
         const days = daysInMonth(state.currentMonth, state.currentYear);
-        const membersCount = state.members.length;
+        const membersCount = md.members.length;
 
         // Loop through all members and all days and clear admin verification
         const updates = {};
@@ -1180,7 +1184,7 @@ function renderBazar() {
     const availWrap = el('div', { style: 'margin-bottom:16px' });
     availWrap.appendChild(el('div', { style: 'font-weight:600; font-size:13px; margin-bottom:8px; color:var(--text-primary)' }, '\ud83d\udc64 Member Bazar Availability'));
     const availGrid = el('div', { style: 'display:flex; flex-wrap:wrap; gap:10px;' });
-    state.members.forEach((m) => {
+    md.members.forEach((m) => {
       const isSkipped = md.bazarSkip[m] || false;
       const chip = el('button', {
         class: `bazar-avail-chip ${isSkipped ? 'skipped' : 'active-chip'}`,
@@ -1191,7 +1195,7 @@ function renderBazar() {
     availWrap.appendChild(availGrid);
     slotWrap.appendChild(availWrap);
 
-    const availableMembers = state.members.filter(m => !md.bazarSkip[m]);
+    const availableMembers = md.members.filter(m => !md.bazarSkip[m]);
     const genBtn = el('button', {
       class: 'btn-gradient', style: 'margin-bottom:16px;max-width:350px',
       onclick: () => {
@@ -1215,7 +1219,7 @@ function renderBazar() {
 
   if (md.bazarSlots && md.bazarSlots.length > 0) {
     const legend = el('div', { class: 'slot-legend' });
-    state.members.forEach((m, mi) => {
+    md.members.forEach((m, mi) => {
       const count = md.bazarSlots.filter(s => s === m).length;
       if (count > 0) {
         const dot = el('div', { class: 'slot-legend-item' });
@@ -1235,7 +1239,7 @@ function renderBazar() {
     for (let d = 0; d < days; d++) {
       ((dayIdx) => {
         const assigned = md.bazarSlots[dayIdx] || '?';
-        const mi = state.members.indexOf(assigned);
+        const mi = md.members.indexOf(assigned);
         const color = mi >= 0 ? COLORS[mi % COLORS.length] : '#555';
 
         const dayCell = el('div', { class: 'bazar-cal-day', style: `border-color:${color}` });
@@ -1248,7 +1252,7 @@ function renderBazar() {
             const modal = el('div', { class: 'modal-overlay' });
             const content = el('div', { class: 'modal-content' });
             content.appendChild(el('h3', { style: 'margin-bottom:12px' }, `Day ${dayIdx + 1} \u2014 Reassign`));
-            state.members.forEach((m, idx) => {
+            md.members.forEach((m, idx) => {
               if (md.bazarSkip && md.bazarSkip[m]) return;
               content.appendChild(el('button', {
                 class: 'btn-gradient', style: `margin-bottom:8px; background:${COLORS[idx % COLORS.length]}`,
@@ -1288,8 +1292,8 @@ function renderBazar() {
 
     // Meal reminder: check TODAY's actual date against actual current month data
     if (realMd) {
-      const unenteredMembers = state.members.filter((m, mi) => {
-        if (state.members[mi] === 'ALIF') return false; // ALIF is excluded
+      const unenteredMembers = md.members.filter((m, mi) => {
+        if (md.members[mi] === 'ALIF') return false; // ALIF is excluded
         if (realMd.mealOff && realMd.mealOff[mi]) return false; // mealOff members excluded
         const val = realMd.meals[mi] ? realMd.meals[mi][todayIdx] : null;
         return val === null || val === undefined;
@@ -1651,7 +1655,7 @@ function renderRent() {
           const content = el('div', { class: 'modal-content' });
           content.appendChild(el('h3', { style: 'margin-bottom:8px' }, `Exclusions: ${f.label}`));
           content.appendChild(el('p', { style: 'font-size:12px; margin-bottom:12px; color:var(--text-secondary)' }, 'Uncheck members who should NOT pay for this bill.'));
-          state.members.forEach((m, mi) => {
+          md.members.forEach((m, mi) => {
             const row = el('div', { class: 'toggle-row' });
             const key = `${mi}_${f.key}`;
             const isExcluded = md.rentExclusions[key];
@@ -1687,7 +1691,7 @@ function renderRent() {
 
   // Per-member breakdown table
   container.appendChild(el('div', { class: 'section-heading' }, '👥 Per-Member Breakdown'));
-  const rentRows = calcRent(md, state.members);
+  const rentRows = calcRent(md, md.members);
 
   const wrap = el('div', { class: 'table-wrap' },
     el('div', { class: 'table-title' }, '🏠 Rent & Utilities Split')
@@ -2231,18 +2235,18 @@ function generateExcelReport() {
   const mk = monthKey(state.currentMonth, state.currentYear);
   const md = ensureMonthData(state, mk);
   const days = daysInMonth(state.currentMonth, state.currentYear);
-  const { results, grandTotalMeals, grandTotalBazar, grandTotalOthers, perMealRate } = calcReport(md, state.members);
+  const { results, grandTotalMeals, grandTotalBazar, grandTotalOthers, perMealRate } = calcReport(md, md.members);
 
   const wb = XLSX.utils.book_new();
 
   // 1. Meals Sheet
-  const mealData = [["Day", ...state.members, "Total"]];
-  const mealTotals = new Array(state.members.length).fill(0);
+  const mealData = [["Day", ...md.members, "Total"]];
+  const mealTotals = new Array(md.members.length).fill(0);
   let mealGrand = 0;
   for (let d = 0; d < days; d++) {
     const row = [d + 1];
     let rTotal = 0;
-    state.members.forEach((m, mi) => {
+    md.members.forEach((m, mi) => {
       const v = md.meals[mi][d] || 0;
       row.push(v);
       rTotal += v;
@@ -2256,14 +2260,14 @@ function generateExcelReport() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mealData), "Meals");
 
   // 2. Bazar Sheet
-  const bazarData = [["Day", ...state.members, "Total Bazar", "Day", ...state.members, "Total Others"]];
-  const bazarTotals = new Array(state.members.length).fill(0);
-  const othersTotals = new Array(state.members.length).fill(0);
+  const bazarData = [["Day", ...md.members, "Total Bazar", "Day", ...md.members, "Total Others"]];
+  const bazarTotals = new Array(md.members.length).fill(0);
+  const othersTotals = new Array(md.members.length).fill(0);
   let bGrand = 0, oGrand = 0;
   for (let d = 0; d < days; d++) {
     const row = [d + 1];
     let brTotal = 0;
-    state.members.forEach((m, mi) => {
+    md.members.forEach((m, mi) => {
       const v = md.bazar[mi][d] || 0;
       row.push(v);
       brTotal += v;
@@ -2274,7 +2278,7 @@ function generateExcelReport() {
 
     row.push(d + 1);
     let orTotal = 0;
-    state.members.forEach((m, mi) => {
+    md.members.forEach((m, mi) => {
       const v = md.bazarOthers[mi][d] || 0;
       row.push(v);
       orTotal += v;
@@ -2303,7 +2307,7 @@ function generateExcelReport() {
   sumData.push([]);
   sumData.push(["House Rent & Utilities Split"]);
   sumData.push(["Member", ...UTILITY_FIELDS.map(f => f.label), "Service Total", "Rent", "Extras", "Grand Total", "Paid", "Yet to Pay"]);
-  const rentRows = calcRent(md, state.members);
+  const rentRows = calcRent(md, md.members);
   let ss = 0, sr = 0, se = 0, sgt = 0, sp = 0, sy = 0;
   rentRows.forEach(r => {
     if (!isAdmin() && !rentUnlocked && r.name !== currentUser) return;
@@ -2351,8 +2355,8 @@ function runPeriodicTasks() {
   const md = ensureMonthData(state, mk);
 
   if (state.currentYear === bd.year && state.currentMonth === bd.month) {
-    const alifIdx = state.members.indexOf('ALIF');
-    for (let mi = 0; mi < state.members.length; mi++) {
+    const alifIdx = md.members.indexOf('ALIF');
+    for (let mi = 0; mi < md.members.length; mi++) {
       if (mi === alifIdx) continue;
       if (md.mealOff && md.mealOff[mi]) continue;
 
@@ -2375,7 +2379,7 @@ function runPeriodicTasks() {
         'currentYear': state.currentYear
     };
     if (md && md.meals) {
-        state.members.forEach((m, mi) => {
+        md.members.forEach((m, mi) => {
             if (md.meals[mi]) updates[`months/${mk}/meals/${mi}`] = md.meals[mi];
         });
     }
