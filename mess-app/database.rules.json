@@ -5,6 +5,10 @@
         "messState": {
             ".read": true,
             ".write": true
+        },
+        "football": {
+            ".read": true,
+            ".write": true
         }
     }
 }

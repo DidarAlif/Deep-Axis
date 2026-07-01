@@ -70,6 +70,14 @@
           </svg>
           Chat
         </button>
+        <button class="nav-btn" data-tab="football">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 2a10 10 0 0 0 0 20 10 10 0 0 0 0-20zm0 2.5L14.5 7h-5L12 4.5zM4.5 10h3L9 12.5 7.5 15H4.5a9.5 9.5 0 0 1 0-5zm11 5L14 12.5 15.5 10h3a9.5 9.5 0 0 1 0 5h-3zM7.5 16.5h9L15 19.5H9l-1.5-3z" />
+          </svg>
+          Football
+          <span class="football-live-dot" id="footballLiveDot" style="display:none"></span>
+        </button>
         <button class="nav-btn" data-tab="admin" id="adminNavBtn" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3" />
@@ -141,6 +149,8 @@
       <section class="tab-content" id="tab-rent"></section>
       <!-- History -->
       <section class="tab-content" id="tab-history"></section>
+      <!-- Football -->
+      <section class="tab-content" id="tab-football"></section>
       <!-- Chat -->
       <section class="tab-content" id="tab-chat"></section>
       <!-- Admin -->
@@ -178,7 +188,10 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script type="module" src="main.js"></script>
+  <script src="football-data.js?v=1.0.4"></script>
+  <script src="main.js?v=1.0.4"></script>
+  <script src="football-ui.js?v=1.0.4"></script>
+  <script src="football-features.js?v=1.0.4"></script>
 </body>
 
 </html>
