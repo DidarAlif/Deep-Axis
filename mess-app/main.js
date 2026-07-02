@@ -79,7 +79,7 @@ function membersForMonth(st, mk, md) {
   const expected = knownMembers(st).filter(m => isMemberActiveForMonth(m, mk, st));
   if (!existing.length) return expected;
 
-  const kept = existing.filter(m => isMemberActiveForMonth(m, mk, st));
+  const kept = existing.filter(m => expected.includes(m));
   const added = expected.filter(m => !kept.includes(m));
   return [...kept, ...added];
 }
@@ -724,7 +724,15 @@ function hideLogin() {
   const gdlBtn = $('#globalDownloadBtn');
   if (gdlBtn) gdlBtn.style.display = isAdmin() ? '' : 'none';
   updateUserBadge();
-  renderActiveTabOnly();
+  if (_firebaseReady) {
+    renderActiveTabOnly();
+  } else {
+    // Wait for fresh data from Firebase before rendering to prevent stale UI
+    const activeTab = document.querySelector('.tab-content.active');
+    if (activeTab) {
+      activeTab.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-muted); font-size: 16px;">Syncing with database...</div>';
+    }
+  }
   showToast(`Welcome, ${currentUser}!`, 'info');
 }
 
@@ -1834,14 +1842,19 @@ function renderRent() {
       const newVal = raw === '' ? '' : Number(raw);
       if (md.rent[i] === newVal) return;
       md.rent[i] = newVal;
-      if (typeof logActivity === 'function') logActivity(`${currentUser} updated House Rent for ${r.name} to ৳${md.rent[i]}`, r.name);
-      const mk = monthKey(state.currentMonth, state.currentYear);
-      const updates = { [`months/${mk}/rent/${i}`]: newVal };
-      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
-      _skipNextRender = true;
-      saveUpdates(updates);
-      saveLocal();
-      renderActiveTabOnly();
+      
+      const cellKey = `rent-${i}`;
+      if (_inputDebounceTimers[cellKey]) clearTimeout(_inputDebounceTimers[cellKey]);
+      _inputDebounceTimers[cellKey] = setTimeout(() => {
+        if (typeof logActivity === 'function') logActivity(`${currentUser} updated House Rent for ${r.name} to ৳${md.rent[i]}`, r.name);
+        const mk = monthKey(state.currentMonth, state.currentYear);
+        const updates = { [`months/${mk}/rent/${i}`]: newVal };
+        if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+        _skipNextRender = true;
+        saveUpdates(updates);
+        saveLocal();
+        renderActiveTabOnly();
+      }, 300);
     });
     tr.appendChild(el('td', {}, rentInp));
 
@@ -1859,14 +1872,19 @@ function renderRent() {
       const newVal = raw === '' ? '' : Number(raw);
       if (md.rentExtras[i] === newVal) return;
       md.rentExtras[i] = newVal;
-      if (typeof logActivity === 'function') logActivity(`${currentUser} updated Utilities Extra for ${r.name} to ৳${md.rentExtras[i]}`, r.name);
-      const mk = monthKey(state.currentMonth, state.currentYear);
-      const updates = { [`months/${mk}/rentExtras/${i}`]: newVal };
-      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
-      _skipNextRender = true;
-      saveUpdates(updates);
-      saveLocal();
-      renderActiveTabOnly();
+      
+      const cellKey = `extra-${i}`;
+      if (_inputDebounceTimers[cellKey]) clearTimeout(_inputDebounceTimers[cellKey]);
+      _inputDebounceTimers[cellKey] = setTimeout(() => {
+        if (typeof logActivity === 'function') logActivity(`${currentUser} updated Utilities Extra for ${r.name} to ৳${md.rentExtras[i]}`, r.name);
+        const mk = monthKey(state.currentMonth, state.currentYear);
+        const updates = { [`months/${mk}/rentExtras/${i}`]: newVal };
+        if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+        _skipNextRender = true;
+        saveUpdates(updates);
+        saveLocal();
+        renderActiveTabOnly();
+      }, 300);
     });
     tr.appendChild(el('td', {}, extraInp));
 
@@ -1887,14 +1905,19 @@ function renderRent() {
       const newVal = raw === '' ? '' : Number(raw);
       if (md.rentPaid[i] === newVal) return;
       md.rentPaid[i] = newVal;
-      if (typeof logActivity === 'function') logActivity(`${currentUser} updated Rent Paid for ${r.name} to ৳${md.rentPaid[i]}`, r.name);
-      const mk = monthKey(state.currentMonth, state.currentYear);
-      const updates = { [`months/${mk}/rentPaid/${i}`]: newVal };
-      if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
-      _skipNextRender = true;
-      saveUpdates(updates);
-      saveLocal();
-      renderActiveTabOnly();
+      
+      const cellKey = `paid-${i}`;
+      if (_inputDebounceTimers[cellKey]) clearTimeout(_inputDebounceTimers[cellKey]);
+      _inputDebounceTimers[cellKey] = setTimeout(() => {
+        if (typeof logActivity === 'function') logActivity(`${currentUser} updated Rent Paid for ${r.name} to ৳${md.rentPaid[i]}`, r.name);
+        const mk = monthKey(state.currentMonth, state.currentYear);
+        const updates = { [`months/${mk}/rentPaid/${i}`]: newVal };
+        if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+        _skipNextRender = true;
+        saveUpdates(updates);
+        saveLocal();
+        renderActiveTabOnly();
+      }, 300);
     });
     tr.appendChild(el('td', {}, paidInp));
 
@@ -2559,32 +2582,6 @@ function runPeriodicTasks() {
     if (ms) ms.value = state.currentMonth;
     if (ys) ys.value = state.currentYear;
     showToast('Welcome to a new month!', 'info');
-  }
-
-  // 2. Meal Auto-Default — only for active members in the current month
-  const mk = monthKey(state.currentMonth, state.currentYear);
-  const md = ensureMonthData(state, mk);
-  const members = md.members;
-
-  if (state.currentYear === bd.year && state.currentMonth === bd.month) {
-    const alifIdx = members.indexOf('ALIF');
-    for (let mi = 0; mi < members.length; mi++) {
-      if (mi === alifIdx) continue;
-      if (md.mealOff && md.mealOff[mi]) continue;
-
-      // Skip members who are not active for this month
-      const memberName = members[mi];
-      if (typeof isMemberActiveForMonth === 'function' && !isMemberActiveForMonth(memberName, mk)) continue;
-
-      for (let d = 0; d < bd.day - 1; d++) {
-        // Only auto-fill null (un-entered) meals to 3.
-        // Explicit 0 means "no meal" and is preserved.
-        if (md.meals[mi][d] === null || md.meals[mi][d] === undefined) {
-          md.meals[mi][d] = 3;
-          changed = true;
-        }
-      }
-    }
   }
 
   if (changed) {
