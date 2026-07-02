@@ -35,7 +35,9 @@ function defaultState() {
 
 function uniqMembers(list) {
   const seen = new Set();
-  return (list || [])
+  // Safely handle both arrays and Firebase pseudo-arrays (objects with integer keys)
+  const arr = Array.isArray(list) ? list : (typeof list === 'object' && list !== null ? Object.values(list) : (list ? [list] : []));
+  return arr
     .map(m => String(m || '').trim().toUpperCase())
     .filter(m => {
       if (!m || seen.has(m)) return false;
@@ -2576,6 +2578,10 @@ function runPeriodicTasks() {
     const realMembers = realMd.members;
     for (let d = 0; d < todayIdx; d++) {
       realMembers.forEach((m, mi) => {
+        // Ensure the meals array for this member exists
+        if (!realMd.meals[mi]) {
+          realMd.meals[mi] = new Array(daysInMonth(bd.month, bd.year)).fill(null);
+        }
         // Only target explicitly null/undefined. 0 is preserved.
         if (realMd.meals[mi][d] === null || realMd.meals[mi][d] === undefined) {
           realMd.meals[mi][d] = 2;
