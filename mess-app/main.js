@@ -994,7 +994,7 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
   // Body
   const tbody = el('tbody');
   
-  tbody.addEventListener('change', (e) => {
+  tbody.addEventListener('input', (e) => {
     if (e.target.classList.contains('grid-input')) {
       const parts = e.target.id.split('-');
       if (parts.length === 4 && parts[0] === 'inp') {
@@ -1022,20 +1022,25 @@ function renderDayGrid(containerId, dataKey, title, subtitle) {
          }
 
          dataArr[mi][d] = newVal;
-         const member = members[mi];
-         if (typeof logActivity === 'function') logActivity(`${currentUser} updated ${title} for Day ${d + 1} (${member}) to ${newVal}`, member);
-         
-         _skipNextRender = true;
-         const updates = { [`months/${mk}/${dKey}/${mi}/${d}`]: newVal };
-         if (isAdmin()) {
-           const vAKey = dKey === 'meals' ? 'vMealsAdmin' : (dKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin');
-           if (mData[vAKey]) {
-             mData[vAKey][mi][d] = true;
-             updates[`months/${mk}/${vAKey}/${mi}/${d}`] = true;
+
+         const cellKey = `grid-${dKey}-${mi}-${d}`;
+         if (_inputDebounceTimers[cellKey]) clearTimeout(_inputDebounceTimers[cellKey]);
+         _inputDebounceTimers[cellKey] = setTimeout(() => {
+           const member = members[mi];
+           if (typeof logActivity === 'function') logActivity(`${currentUser} updated ${title} for Day ${d + 1} (${member}) to ${newVal}`, member);
+           
+           _skipNextRender = true;
+           const updates = { [`months/${mk}/${dKey}/${mi}/${d}`]: newVal };
+           if (isAdmin()) {
+             const vAKey = dKey === 'meals' ? 'vMealsAdmin' : (dKey === 'bazar' ? 'vBazarAdmin' : 'vBazarOthersAdmin');
+             if (mData[vAKey]) {
+               mData[vAKey][mi][d] = true;
+               updates[`months/${mk}/${vAKey}/${mi}/${d}`] = true;
+             }
            }
-         }
-         if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
-         saveUpdates(updates);
+           if (typeof logActivity === 'function') updates['logs'] = state.logs || [];
+           saveUpdates(updates);
+         }, 300);
          
          const days = daysInMonth(state.currentMonth, state.currentYear);
          let rTotal = 0;
@@ -1964,26 +1969,16 @@ function renderRent() {
 // ── Render: History Tab ──
 function renderHistory() {
   const container = $('#tab-history');
-  const canSeeAll = isAdmin() || historyUnlocked;
   container.innerHTML = '';
+  if (!isAdmin()) {
+    container.appendChild(el('div', { class: 'table-wrap', style: 'padding:20px;text-align:center;color:var(--text-muted)' }, '🔒 Admin access only.'));
+    return;
+  }
+
   container.appendChild(el('div', { class: 'page-header' },
     el('h2', {}, 'Balance History'),
-    el('p', {}, canSeeAll ? 'Full view — all members' : 'Showing your history only. Enter admin password to see all.')
+    el('p', {}, 'Full view — all members')
   ));
-
-  if (!isAdmin() && !historyUnlocked) {
-    const bar = el('div', { class: 'login-card', style: 'width:100%;padding:20px;display:flex;gap:10px;margin-bottom:20px' },
-      el('span', {}, '🔒 Unlock All:'),
-      el('input', { type: 'password', id: 'histUnlockPass', placeholder: 'Admin pass...' }),
-      el('button', {
-        class: 'unlock-btn', onclick: () => {
-          if ($('#histUnlockPass').value === getPasswords()['ALIF']) { historyUnlocked = true; renderHistory(); }
-          else showToast('Wrong password', 'error');
-        }
-      }, 'Unlock')
-    );
-    container.appendChild(bar);
-  }
 
   // Collect months that have data
   const monthKeys = Object.keys(state.months).sort();
@@ -2009,13 +2004,11 @@ function renderHistory() {
   thead.appendChild(headRow);
   table.appendChild(thead);
 
-  const historyMembers = canSeeAll
-    ? knownMembers(state).filter(member => monthKeys.some(mk => ensureMonthData(state, mk).members.includes(member)))
-    : [currentUser];
+  const historyMembers = knownMembers(state).filter(member => monthKeys.some(mk => ensureMonthData(state, mk).members.includes(member)));
 
   const tbody = el('tbody');
   historyMembers.forEach((member, mi) => {
-    if (!canSeeAll && member !== currentUser) return;
+    // admin only, see all
     const tr = el('tr');
     const nameCell = el('td');
     nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member));
@@ -2060,7 +2053,7 @@ function renderHistory() {
 
   const ntbody = el('tbody');
   members.forEach((member, mi) => {
-    if (!canSeeAll && member !== currentUser) return;
+    // admin only, see all
     const tr = el('tr');
     const nameCell = el('td');
     nameCell.appendChild(el('div', { class: 'name-cell' }, avatar(member, mi), member));
@@ -2118,6 +2111,12 @@ function renderAdmin() {
     const fg = el('div', { class: 'form-group' });
     fg.appendChild(el('label', {}, member));
     const inp = el('input', { type: 'text', value: passwords[member] || '1234' });
+    inp.addEventListener('input', e => {
+      const pw = getPasswords();
+      pw[member] = e.target.value.trim();
+      savePasswords(pw);
+      // No toast on every keystroke to avoid spam
+    });
     inputs[member] = inp;
     fg.appendChild(inp);
     grid.appendChild(fg);
@@ -2125,29 +2124,7 @@ function renderAdmin() {
 
   container.appendChild(grid);
 
-  const saveBtn = el('button', {
-    class: 'btn',
-    style: 'margin-top: 20px; padding: 10px 20px; background-color: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;',
-    onclick: () => {
-      let changed = false;
-      state.members.forEach(member => {
-        const newVal = inputs[member].value;
-        if (passwords[member] !== newVal) {
-          passwords[member] = newVal;
-          changed = true;
-        }
-      });
-
-      if (changed) {
-        savePasswords(passwords);
-        showToast('Passwords saved successfully!', 'success');
-      } else {
-        showToast('No changes to save.', 'info');
-      }
-    }
-  }, '💾 Save Passwords');
-
-  container.appendChild(saveBtn);
+  // Removed manual save button for keystroke updates
 }
 
 // ── Management Tab ──
@@ -2363,10 +2340,9 @@ function removeMember(name) {
   }
   if (!confirm(`Remove ${name}?\n\n• They will be removed from the login dropdown immediately\n• Historical records (meals, bazar, rent) will be preserved\n• They will not appear in future months`)) return;
 
-  // Track deletion for historical integrity
+  // Track deletion for historical integrity based on currently viewed month
   if (!state.deletedMembers) state.deletedMembers = {};
-  const bd = getBDDate();
-  const deletedMk = monthKey(bd.month, bd.year);
+  const deletedMk = monthKey(state.currentMonth, state.currentYear);
   state.deletedMembers[name] = {
     deletedAt: deletedMk,
     deletedDate: new Date().toISOString()
