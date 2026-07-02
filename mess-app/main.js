@@ -68,9 +68,10 @@ function isMemberActiveForMonth(memberName, mk, st = state) {
 }
 
 function activeLoginMembers(st = state) {
+  const bd = getBDDate();
+  const currentMk = monthKey(bd.month, bd.year);
   return uniqMembers(st.members || DEFAULT_MEMBERS).filter(m => {
-    const deleted = st.deletedMembers && st.deletedMembers[m];
-    return !(deleted && deleted.deletedAt);
+    return isMemberActiveForMonth(m, currentMk, st);
   });
 }
 
@@ -2282,10 +2283,10 @@ function addMember() {
   // Add to active members
   state.members.push(name);
 
-  // Record join metadata — member is active from the selected/current month onward
+  // Record join metadata — member is active from the real-world current month onward
   if (!state.memberMeta) state.memberMeta = {};
   const bd = getBDDate();
-  const addedMk = monthKey(state.currentMonth, state.currentYear);
+  const addedMk = monthKey(bd.month, bd.year);
   state.memberMeta[name] = {
     addedAt: addedMk,
     addedDate: new Date().toISOString()
@@ -2340,9 +2341,10 @@ function removeMember(name) {
   }
   if (!confirm(`Remove ${name}?\n\n• They will be removed from the login dropdown immediately\n• Historical records (meals, bazar, rent) will be preserved\n• They will not appear in future months`)) return;
 
-  // Track deletion for historical integrity based on currently viewed month
+  // Track deletion for historical integrity based on real-world current month
   if (!state.deletedMembers) state.deletedMembers = {};
-  const deletedMk = monthKey(state.currentMonth, state.currentYear);
+  const bd = getBDDate();
+  const deletedMk = monthKey(bd.month, bd.year);
   state.deletedMembers[name] = {
     deletedAt: deletedMk,
     deletedDate: new Date().toISOString()
@@ -2541,6 +2543,7 @@ function generateExcelReport() {
 function runPeriodicTasks() {
   const bd = getBDDate();
   let changed = false;
+  const updates = {};
 
   // 1. Auto Month Rollover (execute only once when the real-world month actually changes)
   if (state.lastRolledMonth !== bd.month || state.lastRolledYear !== bd.year) {
@@ -2551,6 +2554,11 @@ function runPeriodicTasks() {
     state.currentYear = bd.year;
     const mk = monthKey(state.currentMonth, state.currentYear);
     ensureMonthData(state, mk);
+    
+    updates['lastRolledMonth'] = state.lastRolledMonth;
+    updates['lastRolledYear'] = state.lastRolledYear;
+    updates['currentMonth'] = state.currentMonth;
+    updates['currentYear'] = state.currentYear;
     changed = true;
 
     const ms = $('#monthSelect');
@@ -2560,18 +2568,25 @@ function runPeriodicTasks() {
     showToast('Welcome to a new month!', 'info');
   }
 
-  if (changed) {
-    const updates = { 
-        'lastRolledMonth': state.lastRolledMonth, 
-        'lastRolledYear': state.lastRolledYear,
-        'currentMonth': state.currentMonth,
-        'currentYear': state.currentYear
-    };
-    if (md && md.meals) {
-        members.forEach((m, mi) => {
-            if (md.meals[mi]) updates[`months/${mk}/meals/${mi}`] = md.meals[mi];
-        });
+  // 2. Auto-convert missing meals to 2 for past days in the current real-world month
+  const realMk = monthKey(bd.month, bd.year);
+  const realMd = state.months && state.months[realMk];
+  if (realMd && realMd.meals) {
+    const todayIdx = bd.day - 1;
+    const realMembers = realMd.members;
+    for (let d = 0; d < todayIdx; d++) {
+      realMembers.forEach((m, mi) => {
+        // Only target explicitly null/undefined. 0 is preserved.
+        if (realMd.meals[mi][d] === null || realMd.meals[mi][d] === undefined) {
+          realMd.meals[mi][d] = 2;
+          changed = true;
+          updates[`months/${realMk}/meals/${mi}/${d}`] = 2;
+        }
+      });
     }
+  }
+
+  if (changed) {
     saveUpdates(updates);
     saveLocal();
     renderActiveTabOnly();
